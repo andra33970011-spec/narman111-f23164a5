@@ -61,6 +61,18 @@ export const createUploadSession = createServerFn({ method: "POST" })
       .from(BUCKET)
       .createSignedUploadUrl(objectPath);
     if (error || !signed) throw new Error(error?.message ?? "Gagal membuat signed upload URL");
+    // Pre-create a pending row to track lifecycle (orphan if never finalized)
+    await supabaseAdmin.from("form_submission_files").insert({
+      submission_id: s.id,
+      field_kode: data.fieldKode,
+      storage_path: objectPath,
+      mime: data.mime,
+      size_bytes: data.sizeBytes,
+      uploaded_by: userId,
+      upload_started_at: new Date().toISOString(),
+      finalized_at: null,
+      cleanup_status: "pending_cleanup",
+    } as never);
     return {
       bucket: BUCKET,
       path: objectPath,
