@@ -62,7 +62,7 @@ function Page() {
           pageSize,
         };
         if (statusFilter) payload.status = statusFilter;
-        const r = (await listForReview({ data: payload })) as { rows: Row[]; total: number };
+        const r = (await listForReview({ data: payload })) as unknown as { rows: Row[]; total: number };
         if (cancelled) return;
         setRows(r.rows);
         setTotal(r.total);
