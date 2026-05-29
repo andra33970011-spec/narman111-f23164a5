@@ -1638,6 +1638,36 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_hits: {
+        Row: {
+          blocked: boolean
+          count: number
+          id: number
+          last_hit_at: string
+          scope: string
+          subject: string
+          window_start: string
+        }
+        Insert: {
+          blocked?: boolean
+          count?: number
+          id?: number
+          last_hit_at?: string
+          scope: string
+          subject: string
+          window_start: string
+        }
+        Update: {
+          blocked?: boolean
+          count?: number
+          id?: number
+          last_hit_at?: string
+          scope?: string
+          subject?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       rbac_audit: {
         Row: {
           aksi: string
@@ -2094,6 +2124,10 @@ export type Database = {
           opd_id: string
           total_rating: number
         }[]
+      }
+      rate_limit_increment: {
+        Args: { _scope: string; _subject: string; _window_start: string }
+        Returns: number
       }
       rating_list_admin: {
         Args: never
