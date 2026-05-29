@@ -598,6 +598,45 @@ export type Database = {
         }
         Relationships: []
       }
+      dead_letter_jobs: {
+        Row: {
+          error_message: string | null
+          failed_at: string
+          id: string
+          job_name: string
+          payload: Json
+          request_id: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          retry_count: number
+        }
+        Insert: {
+          error_message?: string | null
+          failed_at?: string
+          id?: string
+          job_name: string
+          payload?: Json
+          request_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number
+        }
+        Update: {
+          error_message?: string | null
+          failed_at?: string
+          id?: string
+          job_name?: string
+          payload?: Json
+          request_id?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          retry_count?: number
+        }
+        Relationships: []
+      }
       desa: {
         Row: {
           aktif: boolean
@@ -1740,6 +1779,60 @@ export type Database = {
           id?: string
           target_user_id?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      retry_queue: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          created_at: string
+          id: string
+          job_name: string
+          last_attempt_at: string | null
+          last_error: string | null
+          locked_at: string | null
+          locked_by: string | null
+          max_attempts: number
+          next_run_at: string
+          payload: Json
+          request_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_name: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          next_run_at?: string
+          payload?: Json
+          request_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          job_name?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          locked_at?: string | null
+          locked_by?: string | null
+          max_attempts?: number
+          next_run_at?: string
+          payload?: Json
+          request_id?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
