@@ -58,16 +58,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [systemPosition, setSystemPosition] = useState<SystemPositionValue | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const DEBUG_AUTH = typeof import.meta !== "undefined" && import.meta.env?.DEV;
+  const debug = (...args: unknown[]) => { if (DEBUG_AUTH) console.debug("[auth]", ...args); };
+
   async function loadRoles(uid: string) {
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    if (error) { debug("loadRoles error", error.message); return; }
     setRoles((data ?? []).map((r) => r.role as AppRole));
   }
   async function loadProfile(uid: string) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("profiles")
       .select("nama_lengkap,nik,no_hp,desa,verified_at,verified_by,asn_type,system_position")
       .eq("id", uid)
       .maybeSingle();
+    if (error) { debug("loadProfile error", error.message); return; }
     const row = data as (AuthProfile & { asn_type?: AsnTypeValue | null; system_position?: SystemPositionValue | null }) | null;
     setProfile(row ? {
       nama_lengkap: row.nama_lengkap,
@@ -80,9 +85,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAsnType(row?.asn_type ?? null);
     setSystemPosition(row?.system_position ?? null);
   }
-  async function loadPermissions(uid: string) {
+  async function loadPermissions(uid: string, attempt = 0): Promise<void> {
     const { data, error } = await supabase.rpc("get_effective_permissions", { _user_id: uid });
     if (error) {
+      debug("loadPermissions error", error.message, "attempt", attempt);
+      // Retry sekali untuk mengatasi transient network/token refresh race.
+      if (attempt < 1) {
+        await new Promise((r) => setTimeout(r, 400));
+        return loadPermissions(uid, attempt + 1);
+      }
       setPermissions(new Set());
       return;
     }
@@ -91,13 +102,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .filter(Boolean);
     setPermissions(new Set(codes));
   }
-  // Catatan: auto-signOut pada login dihapus untuk mencegah user ter-logout
-  // otomatis akibat race condition (roles/profile belum termuat) atau perubahan
-  // konfigurasi. Pembatasan akses (block_login / block_permohonan) ditegakkan
-  // oleh route guard & form permohonan, bukan dengan memaksa signOut sesi.
+
+  async function loadAll(uid: string) {
+    await Promise.all([loadRoles(uid), loadProfile(uid), loadPermissions(uid)]);
+  }
 
   useEffect(() => {
     let settled = false;
+    let lastLoadedUid: string | null = null;
+    let inflight: Promise<void> | null = null;
     const markSettled = () => {
       if (!settled) {
         settled = true;
@@ -105,32 +118,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+    const syncForSession = async (sess: Session | null, source: string) => {
+      const uid = sess?.user?.id ?? null;
       setSession(sess);
       setUser(sess?.user ?? null);
-      if (sess?.user) {
-        setTimeout(async () => {
-          await Promise.all([loadRoles(sess.user.id), loadProfile(sess.user.id), loadPermissions(sess.user.id)]);
-        }, 0);
-      } else {
+      if (!uid) {
+        lastLoadedUid = null;
         setRoles([]);
         setProfile(null);
         setPermissions(new Set());
         setAsnType(null);
         setSystemPosition(null);
+        return;
       }
+      // Dedupe: skip jika uid sama & sudah ada inflight/snapshot — hindari
+      // duplicate fetch saat INITIAL_SESSION + getSession() race.
+      if (uid === lastLoadedUid && inflight) {
+        debug("syncForSession dedupe", source, uid);
+        return inflight;
+      }
+      lastLoadedUid = uid;
+      debug("syncForSession load", source, uid);
+      inflight = loadAll(uid).finally(() => { inflight = null; });
+      return inflight;
+    };
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      debug("onAuthStateChange", event);
+      // Jangan jalankan supabase calls langsung di dalam callback (anjuran resmi).
+      setTimeout(() => { void syncForSession(sess, `event:${event}`); }, 0);
       if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
         markSettled();
       }
     });
 
     supabase.auth.getSession().then(({ data: { session: sess } }) => {
-      setSession((prev) => prev ?? sess);
-      setUser((prev) => prev ?? sess?.user ?? null);
-      if (sess?.user) {
-        Promise.all([loadRoles(sess.user.id), loadProfile(sess.user.id), loadPermissions(sess.user.id)])
-          .finally(markSettled);
-      } else markSettled();
+      void syncForSession(sess, "getSession").finally(markSettled);
+    }).catch((e) => {
+      debug("getSession failed", e);
+      markSettled();
     });
 
     const safety = setTimeout(markSettled, 4000);
@@ -138,7 +164,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe();
       clearTimeout(safety);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   // Realtime: dengarkan perubahan profil pengguna saat ini agar status
   // verifikasi & data lain langsung sinkron dengan dashboard admin.
@@ -193,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             lastSnapshot = next;
             if (downgraded) {
               await supabase.auth.signOut();
-              if (typeof window !== "undefined") window.location.href = "/auth";
+              if (typeof window !== "undefined") window.location.assign("/auth");
               return;
             }
             // Upgrade / sideways change → refresh in-memory state.
@@ -228,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // — backstop bila koneksi realtime sempat putus.
   useEffect(() => {
     if (!user?.id) return;
+    if (typeof document === "undefined") return;
     let last = Date.now();
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
@@ -238,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [user?.id]);
+
 
 
 
