@@ -11,6 +11,7 @@ import {
   type FormSchemaSnapshot,
 } from "@/features/forms/schema/types";
 import { generateAssignmentsForForm } from "./assignments.functions";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 async function requireFormAccess(formId: string, userId: string) {
   const { data: form, error } = await supabaseAdmin
