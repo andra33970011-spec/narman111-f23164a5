@@ -221,7 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             lastSnapshot = next;
             if (downgraded) {
               await supabase.auth.signOut();
-              if (typeof window !== "undefined") window.location.href = "/auth";
+              if (typeof window !== "undefined") window.location.assign("/auth");
               return;
             }
             // Upgrade / sideways change → refresh in-memory state.
