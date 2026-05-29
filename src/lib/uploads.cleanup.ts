@@ -2,7 +2,10 @@
 // Safe to call repeatedly (idempotent). Used by the cron route under
 // src/routes/api/public/hooks/cleanup-uploads.ts.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { log } from "./logger";
+import { log, newCorrelationId } from "./logger";
+
+// Stable advisory-lock key for this job (any int8). Picked once; do not change.
+const ADVISORY_LOCK_KEY = 7421901234567890n;
 
 const BUCKET = "form-submissions";
 const STALE_PENDING_HOURS = 6; // upload_started but never finalized
