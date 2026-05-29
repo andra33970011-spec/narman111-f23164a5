@@ -9,16 +9,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { checkRateLimit } from "@/integrations/supabase/rate-limit.server";
+import { getUserContext } from "@/features/rbac/guards";
 
 async function assertSuperAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "super_admin")
-    .maybeSingle();
-  if (error) throw new Error("Failed to verify role");
-  if (!data) throw new Error("Forbidden: super admin only");
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  if (!ctx.isSuper) throw new Error("Forbidden: super admin only");
 }
 
 async function ensureProfileForUser(userId: string) {
@@ -55,25 +50,11 @@ async function ensureProfileForUser(userId: string) {
 
 // Returns: { isSuper: boolean, opdId: string | null }
 async function assertAdminOrSuper(userId: string) {
-  const { data: roles } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId);
-  const r = (roles ?? []).map((x) => x.role);
-  const isSuper = r.includes("super_admin");
-  const isOpd = r.includes("admin_opd");
-  if (!isSuper && !isOpd) throw new Error("Forbidden: admin only");
-  let opdId: string | null = null;
-  if (isOpd) {
-    const { data: prof } = await supabaseAdmin
-      .from("profiles")
-      .select("opd_id")
-      .eq("id", userId)
-      .maybeSingle();
-    opdId = (prof?.opd_id as string | null) ?? null;
-  }
-  return { isSuper, opdId };
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  if (!ctx.isSuper && !ctx.isAdminOpd) throw new Error("Forbidden: admin only");
+  return { isSuper: ctx.isSuper, opdId: ctx.opdId };
 }
+
 
 function slugify(s: string) {
   return s
