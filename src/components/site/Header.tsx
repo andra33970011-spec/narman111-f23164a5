@@ -128,6 +128,12 @@ export function Header() {
             <Search className="h-4 w-4" />
           </button>
 
+          {user && (
+            <div className="hidden md:block">
+              <NotificationBell />
+            </div>
+          )}
+
           {user ? (
             <div ref={menuRef} className="relative hidden md:block">
               <button
