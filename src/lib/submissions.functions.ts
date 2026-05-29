@@ -13,6 +13,7 @@ import type { FormSchemaSnapshot } from "@/features/forms/schema/types";
 import { enqueueNotification } from "./notifications.functions";
 import { assertTransition, type SubmissionState } from "@/features/forms/schema/state-machine";
 import { log } from "./logger";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 /** Stale-state error class for compare-and-swap detection. */
 class StaleSubmissionError extends Error {
