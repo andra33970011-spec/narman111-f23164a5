@@ -89,14 +89,16 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Outlet />
-        <DynamicBrandingHead />
-        <PushAutoEnable />
-        <PermohonanNotifier />
-        <InstallPWAFloating />
-        <Toaster />
-      </AuthProvider>
+      <AppErrorBoundary>
+        <AuthProvider>
+          <Outlet />
+          <DynamicBrandingHead />
+          <PushAutoEnable />
+          <PermohonanNotifier />
+          <InstallPWAFloating />
+          <Toaster />
+        </AuthProvider>
+      </AppErrorBoundary>
     </QueryClientProvider>
   );
 }
