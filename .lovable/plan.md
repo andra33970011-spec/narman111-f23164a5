@@ -1,101 +1,82 @@
-# Tahap A — Hardening Kritis (RBAC, Auth, RLS, Security)
+# Tahap B — Konsolidasi Authorization Layer
 
-Tujuan: kunci fondasi sebelum membangun workflow ASN. **Tidak ada fitur baru.** UI existing dipertahankan, struktur file dipertahankan semaksimal mungkin. Setiap perubahan adalah perbaikan production blocker.
+Tujuan: jadikan `src/features/rbac/guards.ts` sebagai single source of truth untuk authorization (server + UI), hilangkan duplikasi `getUserContext`, dan standardize permission/OPD scoping.
 
----
+## Scope (tidak menambah fitur baru)
 
-## Urutan Eksekusi
+### 1. Centralized server authorization — `src/features/rbac/guards.ts`
 
-Saya kerjakan dalam 4 batch sehingga setiap batch bisa diverifikasi build-nya sebelum lanjut.
+Tambah/normalisasi helper berikut. Semua menerima `(supabase, userId, resource)` dan return `boolean`. Sumber tunggal `getUserContext` (sudah ada) dipakai semua helper.
 
-### Batch 1 — Privilege Escalation & Auth Middleware (paling kritis)
+- `canAccessForm(supabase, userId, form: { opd_id, target_role })`
+- `canSubmitForm(supabase, userId, assignment: { user_id, form_id })`
+- `canViewSubmission(supabase, userId, submission: { user_id, opd_id })`
+- `canReviewSubmission(supabase, userId, submission: { opd_id })` — alias semantik untuk `canVerifySubmission`
+- `canAccessAssignment(supabase, userId, assignment: { user_id, opd_id })`
+- `canUploadDocument(supabase, userId, ctx: { opd_id })`
+- `canShareDocument(supabase, userId, doc: { owner_user_id, opd_id })`
+- `canRequestDocument(supabase, userId)`
 
-**B4 — `src/lib/registration.functions.ts`**
-- Whitelist field input via Zod (nama_lengkap, email, password, no_hp, nik, desa, opd_id, asn_type — TIDAK termasuk role/permission/system_position elevated).
-- Paksa `role = 'asn'`, `verification_status = 'pending'`, tidak insert ke `user_permissions`.
-- Tolak payload yang membawa field elevated (`role`, `system_position` elevated seperti `kepala_opd`/`kepala_bidang`, `permission_code`).
-- Anti-duplicate: cek NIK/email sebelum signUp.
-- Hash check error → response generik (tidak bocor info user existence).
+Tambah util:
+- `assertOrThrow(check: Promise<boolean>, msg?)` — wrapper untuk handler.
+- Export type `AuthzContext = Awaited<ReturnType<typeof getUserContext>>` agar bisa dipakai luar.
 
-**B1 — Fetch monkey patch**
-- Audit `src/start.ts`: hapus override `window.fetch`/`globalThis.fetch` jika ada; biarkan hanya `attachSupabaseAuth` di `functionMiddleware`.
-- `src/integrations/supabase/auth-attacher.ts` adalah file template auto-generated → tidak diedit (sesuai aturan project). Pastikan saja sudah ter-register di `start.ts`.
-- Tambahkan same-origin guard di middleware kustom yang masih menyentuh fetch (jika ada).
+### 2. Konsolidasi `getUserContext` duplikat
 
-**B6 — `src/features/rbac/admin.functions.ts`**
-- Tambah helper `assertSuper(userId)` dan `assertSuperOrPemda(userId)` (server-side via service-role client, cek `user_roles`).
-- Panggil `assertSuper` di semua fungsi audit RBAC (list audit, detail audit).
-- Panggil `assertSuperOrPemda` di fungsi yang grant `admin_opd`/`admin_desa`/permission elevated. `super_admin` hanya bisa di-grant via DB langsung (sudah dilindungi trigger).
-- Hilangkan ekspos data audit lintas user untuk role non-super.
+File-file ini punya helper user-roles/OPD sendiri → refactor untuk import dari `guards.ts`:
 
-### Batch 2 — Admin Pemda Consistency + Cleanup RBAC
+- `src/lib/asn.functions.ts` — `userRolesAndOpd()` → ganti `getUserContext` shared.
+- `src/lib/aset.functions.ts` — cek & ganti jika ada helper sejenis.
+- `src/lib/dataset.functions.ts` — cek & ganti.
+- `src/lib/verification.functions.ts` — cek & ganti.
+- `src/lib/admin-actions.functions.ts` — cek & ganti.
+- `src/features/rbac/admin.functions.ts` — `assertSuper/assertSuperOrPemda` tetap, tapi delegate ke `getUserContext`.
 
-**B8 — Konsistensi `admin_pemda`**
-- `src/lib/auth-context.tsx`: tambah `isElevatedAdmin = super_admin || admin_pemda` helper.
-- `src/features/rbac/guards.ts` + `hooks.ts` + `constants.ts`: gunakan helper yang sama; satu sumber kebenaran.
-- UI gate (Header/AdminShell/AdminGuard): pakai helper, jangan cek role string ad-hoc.
-- Server function: gunakan `assertSuperOrPemda` di tempat yang sebelumnya hanya cek `has_role('admin_pemda')` parsial.
+Ekspos `getUserContext` dari `guards.ts` (saat ini private). Tetap server-only.
 
-**Remove dead RBAC routes**
-- Hapus file: `src/routes/admin.rbac.tsx`, `admin.rbac.$userId.tsx`, `admin.rbac.audit.tsx`.
-- Tambahkan redirect compatibility: ketiga path tersebut redirect ke `/admin/users` (RBAC sudah menyatu di Manajemen User). Implementasi via route file kecil dengan `beforeLoad: () => redirect(...)`.
+### 3. Hardcoded role check → helper
 
-**Dead code audit**
-- Hapus helper duplikat permission di `src/features/rbac/*` yang sudah digantikan `has_permission`/`has_role` server-side.
-- Konsolidasi cek role ad-hoc di komponen → pakai `useAuth()` helper.
+Cari `isSuperAdmin || isAdminOpd`, `roles.includes("admin_opd")`, `role === "..."` lalu ganti pakai `ctx.isSuper / ctx.isAdminOpd` dari `getUserContext` atau permission-based check.
 
-### Batch 3 — RLS Hardening, Indexes, Verification Status
+### 4. UI authorization consistency
 
-Satu migration SQL gabungan:
+- `src/lib/auth-context.tsx`: tambah memo `isElevatedAdmin = isSuperAdmin || isAdminPemda` (jika belum) dan pastikan UI gates pakai itu, bukan re-check string role.
+- `AdminGuard.tsx`: tetap minimal, tapi pakai `isElevatedAdmin` + `isAdminDesa` untuk admin desa.
+- Pastikan `PermissionGate` / `useCan` (di `src/features/rbac/hooks.ts` & `components.tsx`) tetap satu-satunya jalur cek di komponen. Tidak ada perubahan API.
 
-**RLS hardening**
-- `dataset_submission`: hapus policy `sub user kelola sendiri` (overlap dengan policy `sub insert/select/update sendiri`), pastikan tidak ada `ALL` policy yang membuka DELETE tak terkontrol untuk user.
-- `document_access`: revisi `da manage admin` agar `WITH CHECK` mewajibkan `granted_by = auth.uid()` (sudah ada), tapi `USING` di-scope ke OPD admin yang relevan, bukan semua admin_opd.
-- `notifications`: tambahkan policy INSERT (saat ini disabled untuk semua) → izinkan hanya `service_role` (tidak perlu policy karena service_role bypass), eksplisit blok INSERT dari authenticated.
-- `form_assignments`: pastikan `fa update self status` hanya boleh mengubah kolom `status` (via trigger guard) bukan field lain. Tambah trigger `prevent_form_assignment_tamper` yang menolak update di luar kolom `status`.
+### 5. Permission cache invalidation
 
-**Index optimization**
-```sql
-CREATE INDEX IF NOT EXISTS idx_form_assignments_form_id ON form_assignments(form_id);
-CREATE INDEX IF NOT EXISTS idx_form_assignments_user_form ON form_assignments(user_id, form_id);
-CREATE INDEX IF NOT EXISTS idx_data_requests_requester ON data_requests(requester_user_id);
-CREATE INDEX IF NOT EXISTS idx_data_requests_target_opd ON data_requests(target_opd_id);
-```
-(Tabel `submissions`/`submission_answers`/`submission_files` belum ada di skema — skip; akan dilampirkan ke task workflow ASN nanti.)
+Di `auth-context.tsx`:
+- Listener `onAuthStateChange` untuk `TOKEN_REFRESHED`, `USER_UPDATED` → refetch `getEffectivePermissions`.
+- Realtime subscribe ke `user_roles` & `user_permissions` filter `user_id=eq.<me>` → invalidate permissions cache; jika role hilang → force signOut (sudah ada dari Tahap A, pastikan jalan untuk permission update juga).
+- Refetch on `visibilitychange` (focus polling ringan, 60s throttle).
 
-**Verification status consolidation**
-- Trigger `sync_verified_at`: bila `verification_status` berubah ke `verified`, set `verified_at = now()`; jika berubah keluar dari `verified`, set `verified_at = null`. Sebaliknya, update langsung `verified_at` tidak diizinkan (di-handle trigger `protect_verified_profile` yang sudah ada).
-- Backfill: untuk row dengan `verified_at IS NOT NULL` tapi `verification_status != 'verified'` → set status `verified` (atau sebaliknya, sesuai data mayoritas — akan dicek dulu).
+### 6. Type safety
 
-### Batch 4 — Auth Session Hardening + Final Verification
+- Pastikan helper di `guards.ts` menerima `Permission`/`AppRole` dari `constants.ts` (sudah typed).
+- Return type `AuthzResult = { allowed: boolean; reason?: string }` opsional — TIDAK diadopsi sekarang agar perubahan minimal; tetap boolean + throw.
 
-**Auth session hardening (`src/lib/auth-context.tsx`)**
-- Tambah listener `onAuthStateChange` untuk event `USER_UPDATED` → invalidate cache permission.
-- Polling ringan permissions saat tab focus (refetch `get_effective_permissions`).
-- Bila role berubah (deteksi via perbedaan snapshot), `supabase.auth.signOut()` + redirect `/auth`.
+### 7. Audit pass
 
-**Final pass**
-- Jalankan supabase linter, perbaiki issue yang muncul akibat migration baru (search_path mutable bila ada).
-- Build check.
-- Update security memory dengan posture baru.
+Grep cepat:
+- `createServerFn` tanpa `requireSupabaseAuth` middleware (kecuali public hooks) → tandai.
+- Route `admin.*.tsx` tanpa `AdminGuard` → tandai.
+- Komponen yang menampilkan tombol admin tanpa `useCan`/`PermissionGate` → tandai.
 
----
+Output audit ditulis sebagai komentar singkat di `.lovable/plan.md` (bukan rewrite besar).
 
-## Yang TIDAK Dikerjakan di Tahap A
+## Non-goals
 
-- Workflow ASN baru (form, submission, dataset workflow runtime) — Tahap B.
-- Rate limiting backend — sesuai panduan project, primitive belum tersedia; akan diberi catatan di security memory.
-- Rewrite UI atau perubahan visual.
-- Perubahan storage bucket / signed URL flow di luar yang sudah ada (akan diaudit, bukan diganti).
+- Tidak menambah workflow ASN baru.
+- Tidak mengubah skema DB.
+- Tidak mengubah UI visual.
+- Tidak refactor RLS policies (sudah selesai Tahap A).
 
----
+## Batches
 
-## Risiko & Mitigasi
+1. **B1** — `guards.ts`: export `getUserContext`, tambah 8 helper baru.
+2. **B2** — Refactor server fn (asn, aset, dataset, verification, admin-actions) untuk pakai shared context.
+3. **B3** — `auth-context.tsx`: tambah realtime permission invalidation + visibility refetch.
+4. **B4** — Audit pass + ringkasan di `.lovable/plan.md`.
 
-- **Migration menyentuh RLS produksi** → migrasi idempoten (`DROP POLICY IF EXISTS` sebelum `CREATE`).
-- **Penghapusan route RBAC** bisa memecahkan bookmark admin → diganti dengan redirect, bukan 404.
-- **Forced logout saat role berubah** bisa terasa agresif → hanya trigger saat role *berkurang* (downgrade), bukan setiap perubahan.
-
----
-
-Konfirmasi rencana ini (atau beri tahu batch mana yang ingin diprioritaskan / di-skip), lalu saya mulai dari Batch 1.
+Setiap batch selesai → typecheck via build harness.
