@@ -166,32 +166,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id]);
 
+  // NOTE: Fetch monkey-patch dihapus (B1). Token Authorization sekarang
+  // dilampirkan secara terpusat lewat `attachSupabaseAuth` di src/start.ts
+  // (functionMiddleware). Cara ini lebih aman: hanya server-fn RPC yang
+  // mendapat header, tidak menyentuh global fetch.
+
+  // Forced logout bila role berkurang (downgrade) sejak snapshot terakhir.
+  // Mencegah session yang masih membawa permission lama setelah admin mencabut role.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const w = window as unknown as { __origFetch?: typeof fetch };
-    if (!w.__origFetch) w.__origFetch = window.fetch.bind(window);
-    const orig = w.__origFetch;
-    window.fetch = async (input, init) => {
-      try {
-        const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-        const isServerFn = headers.get("x-tsr-serverfn") === "true";
-        if (isServerFn && !headers.has("authorization")) {
-          const { data } = await supabase.auth.getSession();
-          const token = data.session?.access_token;
-          if (token) {
-            headers.set("authorization", `Bearer ${token}`);
-            return orig(input, { ...init, headers });
+    if (!user?.id) return;
+    let lastSnapshot = roles.slice().sort().join("|");
+    const channel = supabase
+      .channel(`roles-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_roles", filter: `user_id=eq.${user.id}` },
+        async () => {
+          const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id);
+          const next = ((data ?? []).map((r) => r.role as AppRole)).slice().sort().join("|");
+          if (next !== lastSnapshot) {
+            const prev = new Set(lastSnapshot.split("|").filter(Boolean));
+            const now = new Set(next.split("|").filter(Boolean));
+            const downgraded = [...prev].some((r) => !now.has(r));
+            lastSnapshot = next;
+            if (downgraded) {
+              await supabase.auth.signOut();
+              if (typeof window !== "undefined") window.location.href = "/auth";
+              return;
+            }
+            // Upgrade / sideways change → refresh in-memory state.
+            setRoles((data ?? []).map((r) => r.role as AppRole));
+            await loadPermissions(user.id);
           }
-        }
-      } catch {
-        // fall-through
-      }
-      return orig(input, init);
-    };
+        },
+      )
+      .subscribe();
     return () => {
-      if (w.__origFetch) window.fetch = w.__origFetch;
+      supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
 
   const value: AuthCtx = {
     user,
