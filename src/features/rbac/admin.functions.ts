@@ -106,23 +106,40 @@ export const rbacUpdateProfileMeta = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
-
-export const rbacSetPermissionOverride = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) =>
-    z.object({
-      user_id: z.string().uuid(),
-      permission_code: z.string().min(1).max(80),
-      granted: z.boolean(),
-      expires_at: z.string().datetime().nullable().optional(),
-      reason: z.string().max(500).optional(),
-    }).parse(i))
   .handler(async ({ data, context }) => {
-    await assertSuper(context.userId);
+    // Elevated permission hanya boleh di-grant super_admin / admin_pemda;
+    // permission biasa tetap super_admin only (backwards compatible).
+    if (ELEVATED_PERMS.has(data.permission_code)) {
+      await assertSuperOrPemda(context.userId);
+    } else {
+      await assertSuper(context.userId);
+    }
     // upsert by (user_id, permission_code)
     const { data: existing } = await supabaseAdmin
       .from("user_permissions").select("id")
+      .eq("user_id", data.user_id).eq("permission_code", data.permission_code).maybeSingle();
+    if (existing) {
+      const { error } = await supabaseAdmin.from("user_permissions").update({
+        granted: data.granted,
+        expires_at: data.expires_at ?? null,
+        reason: data.reason ?? null,
+        granted_by: context.userId,
+      }).eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabaseAdmin.from("user_permissions").insert({
+        user_id: data.user_id,
+        permission_code: data.permission_code,
+        granted: data.granted,
+        expires_at: data.expires_at ?? null,
+        reason: data.reason ?? null,
+        granted_by: context.userId,
+      });
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true };
+  });
+
       .eq("user_id", data.user_id).eq("permission_code", data.permission_code).maybeSingle();
     if (existing) {
       const { error } = await supabaseAdmin.from("user_permissions").update({
