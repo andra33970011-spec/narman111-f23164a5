@@ -180,7 +180,7 @@ export const saveFormTargets = createServerFn({ method: "POST" })
         targets: z
           .array(
             z.object({
-              target_type: z.enum(["opd", "asn_type", "role", "system_position", "user"]),
+              target_type: z.enum(["opd", "asn_type", "role", "position", "unit_kerja", "individu"]),
               target_value: z.string().min(1).max(80),
             }),
           )
