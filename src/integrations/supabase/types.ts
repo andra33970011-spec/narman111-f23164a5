@@ -326,6 +326,48 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_history: {
+        Row: {
+          affected_rows: number | null
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          finished_at: string | null
+          id: string
+          job_name: string
+          meta: Json
+          request_id: string | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          affected_rows?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name: string
+          meta?: Json
+          request_id?: string | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          affected_rows?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          job_name?: string
+          meta?: Json
+          request_id?: string | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       data_requests: {
         Row: {
           alasan: string
