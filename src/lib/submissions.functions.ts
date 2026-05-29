@@ -149,11 +149,17 @@ export const submitSubmission = createServerFn({ method: "POST" })
       files: (files ?? []) as never,
       created_by: userId,
     });
-    const { error } = await supabaseAdmin
+    const { data: upd, error } = await supabaseAdmin
       .from("form_submissions")
       .update({ status: "submitted", submitted_at: new Date().toISOString(), data: parsed.data as never })
-      .eq("id", s.id);
+      .eq("id", s.id)
+      .eq("version_number", s.version_number)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!upd || upd.length === 0) {
+      log.warn("submission.submit.stale", { userId, submissionId: s.id });
+      throw new StaleSubmissionError();
+    }
     // Update assignment status
     if (s.assignment_id) {
       await supabaseAdmin.from("form_assignments").update({ status: "submitted" }).eq("id", s.assignment_id);
