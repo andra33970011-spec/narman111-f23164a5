@@ -80,6 +80,7 @@ export function subscribeRealtime({ channelName, binding, onPayload }: Subscribe
         ...(binding.filter ? { filter: binding.filter } : {}),
       },
       (payload) => {
+        if (!shouldDeliver(channelName, payload)) return;
         listeners.forEach((fn) => {
           try {
             fn(payload);
