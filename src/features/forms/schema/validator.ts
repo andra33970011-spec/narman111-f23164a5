@@ -35,21 +35,24 @@ function fieldValidator(f: FormField): ZodTypeAny {
     }
     case "checkbox": {
       const allowed = f.options.map((o) => o.value);
-      const arr = z.array(z.string()).refine(
+    case "checkbox": {
+      const allowed = f.options.map((o) => o.value);
+      const base = z.array(z.string()).refine(
         (vs) => vs.every((v) => allowed.includes(v)),
         "pilihan tidak valid",
       );
-      return f.required ? arr.min(1, `${f.label} wajib diisi`) : arr.default([]);
+      return f.required
+        ? z.array(z.string()).min(1, `${f.label} wajib diisi`).and(base)
+        : base.default([]);
     }
     case "file_upload": {
-      // Disimpan sebagai id file di submission.data.{kode}; file fisik di
-      // form_submission_files. Validator runtime hanya memeriksa adanya id.
       const s = z.string().optional().or(z.literal(""));
       return f.required ? z.string().min(1, `${f.label} wajib diunggah`) : s;
     }
     case "multi_file_upload": {
-      const arr = z.array(z.string()).max(f.validation.maxFiles ?? 20).default([]);
-      return f.required ? arr.min(1, `${f.label} wajib diunggah`) : arr;
+      const max = f.validation.maxFiles ?? 20;
+      const base = z.array(z.string()).max(max);
+      return f.required ? base.min(1, `${f.label} wajib diunggah`) : base.default([]);
     }
     default:
       return z.any();
