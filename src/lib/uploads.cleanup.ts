@@ -28,6 +28,7 @@ export type CleanupResult = {
  */
 export async function runStaleUploadCleanup(): Promise<CleanupResult> {
   const start = Date.now();
+  const requestId = newCorrelationId();
   const result: CleanupResult = {
     taggedOrphan: 0,
     deletedRows: 0,
@@ -35,6 +36,42 @@ export async function runStaleUploadCleanup(): Promise<CleanupResult> {
     failedDeletes: 0,
     durationMs: 0,
   };
+
+  // Soft concurrency guard: skip if another run is in-flight (< 10 min old)
+  try {
+    const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+    const { data: inflight } = await supabaseAdmin
+      .from("cron_history")
+      .select("id")
+      .eq("job_name", "stale-upload-cleanup")
+      .eq("status", "running")
+      .gte("started_at", tenMinAgo)
+      .limit(1);
+    if (inflight && inflight.length > 0) {
+      log.warn("cleanup.skip_concurrent", { requestId });
+      result.durationMs = Date.now() - start;
+      return result;
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  // Insert running marker
+  let historyId: string | null = null;
+  try {
+    const { data: ins } = await supabaseAdmin
+      .from("cron_history")
+      .insert({
+        job_name: "stale-upload-cleanup",
+        request_id: requestId,
+        status: "running",
+      } as never)
+      .select("id")
+      .maybeSingle();
+    historyId = (ins as { id?: string } | null)?.id ?? null;
+  } catch {
+    /* non-fatal */
+  }
 
   const staleCutoff = new Date(Date.now() - STALE_PENDING_HOURS * 3600 * 1000).toISOString();
   const orphanCutoff = new Date(Date.now() - ORPHAN_RETENTION_DAYS * 86400 * 1000).toISOString();
