@@ -38,8 +38,13 @@ export function subscribeRealtime({ channelName, binding, onPayload }: Subscribe
   if (!entry) {
     const channel = supabase.channel(channelName);
     const listeners = new Set<Listener>();
-    channel.on(
-      // @ts-expect-error - supabase types are loose for postgres_changes
+    (channel as unknown as {
+      on: (
+        type: "postgres_changes",
+        cfg: Record<string, string | undefined>,
+        cb: (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => void,
+      ) => RealtimeChannel;
+    }).on(
       "postgres_changes",
       {
         event: binding.event,
@@ -47,7 +52,7 @@ export function subscribeRealtime({ channelName, binding, onPayload }: Subscribe
         table: binding.table,
         ...(binding.filter ? { filter: binding.filter } : {}),
       },
-      (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+      (payload) => {
         listeners.forEach((fn) => {
           try {
             fn(payload);
