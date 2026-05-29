@@ -1,4 +1,8 @@
-// Server functions untuk UI manajemen RBAC. Hanya super_admin yang boleh.
+// Server functions untuk UI manajemen RBAC.
+// Hardening B6:
+//  - assertSuper untuk operasi sensitif (lihat audit, grant permission elevated).
+//  - assertSuperOrPemda untuk grant role admin_opd / admin_desa.
+//  - super_admin role hanya bisa di-grant via DB (sudah dilindungi trigger).
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -9,6 +13,24 @@ async function assertSuper(userId: string) {
     .from("user_roles").select("role").eq("user_id", userId).eq("role", "super_admin").maybeSingle();
   if (!data) throw new Error("Forbidden: hanya Super Admin");
 }
+
+async function assertSuperOrPemda(userId: string) {
+  const { data } = await supabaseAdmin
+    .from("user_roles").select("role").eq("user_id", userId)
+    .in("role", ["super_admin", "admin_pemda"]);
+  if (!data || data.length === 0) throw new Error("Forbidden: hanya Super Admin / Admin Pemda");
+}
+
+// Daftar permission yang dianggap "elevated" — grant via override hanya
+// boleh dilakukan super_admin / admin_pemda.
+const ELEVATED_PERMS = new Set<string>([
+  "can_manage_users",
+  "can_manage_roles",
+  "can_manage_opd",
+  "can_view_audit_logs",
+  "can_approve_registration",
+]);
+
 
 export const rbacListUsers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
