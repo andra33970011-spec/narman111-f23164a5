@@ -20,7 +20,7 @@ export class CasConflictError extends Error {
 }
 
 export type CasUpdateArgs<TNext extends Record<string, unknown>> = {
-  client: SupabaseClient<never, "public", never>;
+  client: AnyClient;
   table: string;
   id: string;
   /** Compare on integer version (preferred) OR updated_at ISO string. */
@@ -68,7 +68,7 @@ export async function casUpdate<TNext extends Record<string, unknown>, TRow = un
 
 /** Retry a CAS update on conflict. `loader` re-reads the latest row each attempt. */
 export async function casUpdateWithRetry<TRow extends { id: string }>(opts: {
-  client: SupabaseClient<never, "public", never>;
+  client: AnyClient;
   table: string;
   id: string;
   versionColumn?: string;
