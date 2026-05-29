@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { checkRateLimit } from "@/integrations/supabase/rate-limit.server";
+import { getUserContext } from "@/features/rbac/guards";
 
 export type KolomDef = {
   key: string;
