@@ -57,6 +57,7 @@ import { Route as AdminRbacAuditRouteImport } from './routes/admin.rbac.audit'
 import { Route as AdminRbacUserIdRouteImport } from './routes/admin.rbac.$userId'
 import { Route as AdminFormsIdRouteImport } from './routes/admin.forms.$id'
 import { Route as ApiPublicHooksStorageCleanupRouteImport } from './routes/api/public/hooks/storage-cleanup'
+import { Route as ApiPublicHooksCleanupUploadsRouteImport } from './routes/api/public/hooks/cleanup-uploads'
 import { Route as ApiPublicHooksBackupSnapshotRouteImport } from './routes/api/public/hooks/backup-snapshot'
 
 const TentangRoute = TentangRouteImport.update({
@@ -300,6 +301,12 @@ const ApiPublicHooksStorageCleanupRoute =
     path: '/api/public/hooks/storage-cleanup',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksCleanupUploadsRoute =
+  ApiPublicHooksCleanupUploadsRouteImport.update({
+    id: '/api/public/hooks/cleanup-uploads',
+    path: '/api/public/hooks/cleanup-uploads',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksBackupSnapshotRoute =
   ApiPublicHooksBackupSnapshotRouteImport.update({
     id: '/api/public/hooks/backup-snapshot',
@@ -356,6 +363,7 @@ export interface FileRoutesByFullPath {
   '/admin/rbac/audit': typeof AdminRbacAuditRoute
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
+  '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
 }
 export interface FileRoutesByTo {
@@ -407,6 +415,7 @@ export interface FileRoutesByTo {
   '/admin/rbac/audit': typeof AdminRbacAuditRoute
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
+  '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
 }
 export interface FileRoutesById {
@@ -459,6 +468,7 @@ export interface FileRoutesById {
   '/admin/rbac/audit': typeof AdminRbacAuditRoute
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
+  '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
 }
 export interface FileRouteTypes {
@@ -512,6 +522,7 @@ export interface FileRouteTypes {
     | '/admin/rbac/audit'
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
+    | '/api/public/hooks/cleanup-uploads'
     | '/api/public/hooks/storage-cleanup'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -563,6 +574,7 @@ export interface FileRouteTypes {
     | '/admin/rbac/audit'
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
+    | '/api/public/hooks/cleanup-uploads'
     | '/api/public/hooks/storage-cleanup'
   id:
     | '__root__'
@@ -614,6 +626,7 @@ export interface FileRouteTypes {
     | '/admin/rbac/audit'
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
+    | '/api/public/hooks/cleanup-uploads'
     | '/api/public/hooks/storage-cleanup'
   fileRoutesById: FileRoutesById
 }
@@ -663,6 +676,7 @@ export interface RootRouteChildren {
   PermohonanIndexRoute: typeof PermohonanIndexRoute
   AsnScanTokenRoute: typeof AsnScanTokenRoute
   ApiPublicHooksBackupSnapshotRoute: typeof ApiPublicHooksBackupSnapshotRoute
+  ApiPublicHooksCleanupUploadsRoute: typeof ApiPublicHooksCleanupUploadsRoute
   ApiPublicHooksStorageCleanupRoute: typeof ApiPublicHooksStorageCleanupRoute
 }
 
@@ -1004,6 +1018,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksStorageCleanupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/cleanup-uploads': {
+      id: '/api/public/hooks/cleanup-uploads'
+      path: '/api/public/hooks/cleanup-uploads'
+      fullPath: '/api/public/hooks/cleanup-uploads'
+      preLoaderRoute: typeof ApiPublicHooksCleanupUploadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/backup-snapshot': {
       id: '/api/public/hooks/backup-snapshot'
       path: '/api/public/hooks/backup-snapshot'
@@ -1086,6 +1107,7 @@ const rootRouteChildren: RootRouteChildren = {
   PermohonanIndexRoute: PermohonanIndexRoute,
   AsnScanTokenRoute: AsnScanTokenRoute,
   ApiPublicHooksBackupSnapshotRoute: ApiPublicHooksBackupSnapshotRoute,
+  ApiPublicHooksCleanupUploadsRoute: ApiPublicHooksCleanupUploadsRoute,
   ApiPublicHooksStorageCleanupRoute: ApiPublicHooksStorageCleanupRoute,
 }
 export const routeTree = rootRouteImport

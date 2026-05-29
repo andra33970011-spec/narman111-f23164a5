@@ -142,9 +142,12 @@ export async function setSiteBranding(b: SiteBranding): Promise<void> {
 
 import { useEffect, useState } from "react";
 export function useSiteBranding(): SiteBranding {
-  const [b, setB] = useState<SiteBranding>(() => readBrandingCache() ?? DEFAULT_BRANDING);
+  // SSR-safe: selalu mulai dari DEFAULT_BRANDING agar markup server == client (hindari React #418).
+  const [b, setB] = useState<SiteBranding>(DEFAULT_BRANDING);
   useEffect(() => {
     let alive = true;
+    const cached = readBrandingCache();
+    if (cached) setB(cached);
     getSiteBranding().then((v) => { if (alive) setB(v); }).catch(() => {});
     const onUpdate = (e: Event) => {
       const detail = (e as CustomEvent<SiteBranding>).detail;
