@@ -37,7 +37,7 @@ function Page() {
   async function load() {
     setLoading(true);
     try {
-      const r = (await listForReview({ data: statusFilter ? { status: statusFilter, page: 0, pageSize: 50 } : { page: 0, pageSize: 50 } })) as { rows: Row[] };
+      const r = (await listForReview({ data: statusFilter ? { status: statusFilter, page: 0, pageSize: 50 } : { page: 0, pageSize: 50 } })) as unknown as { rows: Row[] };
       setRows(r.rows);
     } finally { setLoading(false); }
   }
@@ -104,7 +104,7 @@ function ReviewDialog({ id, onClose }: { id: string; onClose: () => void }) {
   useEffect(() => {
     (async () => {
       try {
-        const r = (await getSubmission({ data: { id } })) as { submission: typeof sub; files: typeof files };
+        const r = (await getSubmission({ data: { id } })) as unknown as { submission: typeof sub; files: typeof files };
         setSub(r.submission);
         setFiles(r.files);
         setNote(r.submission?.review_note ?? "");
