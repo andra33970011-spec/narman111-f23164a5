@@ -210,13 +210,21 @@ async function reviewerOrThrow(submissionId: string, userId: string) {
   return s;
 }
 
-async function transitionReview(submissionId: string, userId: string, to: SubmissionState, note: string | null | undefined) {
+async function transitionReview(
+  submissionId: string,
+  userId: string,
+  to: SubmissionState,
+  note: string | null | undefined,
+  expectedVersion?: number,
+) {
   const s = await reviewerOrThrow(submissionId, userId);
   if (!note && (to === "rejected" || to === "revision_required")) {
     throw new Error("Catatan wajib untuk reject / request revision");
   }
   assertTransition(s.status as SubmissionState, to);
-  const { error } = await supabaseAdmin
+  // Optimistic concurrency: client may pass expectedVersion, otherwise use server read.
+  const cas = expectedVersion ?? (s as { version_number: number }).version_number;
+  const { data: upd, error } = await supabaseAdmin
     .from("form_submissions")
     .update({
       status: to,
@@ -224,16 +232,24 @@ async function transitionReview(submissionId: string, userId: string, to: Submis
       reviewed_at: new Date().toISOString(),
       review_note: note ?? null,
     })
-    .eq("id", submissionId);
+    .eq("id", submissionId)
+    .eq("version_number", cas)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!upd || upd.length === 0) {
+    log.warn("submission.review.stale", { userId, submissionId, to });
+    throw new StaleSubmissionError();
+  }
+  log.info("submission.review.ok", { userId, submissionId, to });
   // notify submitter
   await enqueueNotification({
     userId: s.user_id,
     tipe: `form.${to}`,
     judul: `Submission "${(s.forms as { judul: string }).judul}" ${to}`,
     body: note ?? null,
-    link: s.assignment_id ? `/asn/tugas` : `/asn/tugas`,
+    link: `/asn/tugas`,
     meta: { submission_id: s.id, status: to },
+    dedupeKey: `${s.id}:${to}`,
   });
   // Jika revision_required + ada assignment, kembalikan assignment ke in_progress
   if (to === "revision_required" && s.assignment_id) {
