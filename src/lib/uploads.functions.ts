@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getUserContext, canViewSubmission, canReviewSubmission } from "@/features/rbac/guards";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 const BUCKET = "form-submissions";
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB
