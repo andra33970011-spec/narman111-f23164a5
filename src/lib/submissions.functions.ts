@@ -221,6 +221,7 @@ async function transitionReview(
   note: string | null | undefined,
   expectedVersion?: number,
 ) {
+  await enforceRateLimit(userId, RateLimits.submissionReview);
   const s = await reviewerOrThrow(submissionId, userId);
   if (!note && (to === "rejected" || to === "revision_required")) {
     throw new Error("Catatan wajib untuk reject / request revision");
