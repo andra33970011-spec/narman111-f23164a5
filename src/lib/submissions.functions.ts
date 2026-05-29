@@ -12,6 +12,15 @@ import { buildSubmissionValidator } from "@/features/forms/schema/validator";
 import type { FormSchemaSnapshot } from "@/features/forms/schema/types";
 import { enqueueNotification } from "./notifications.functions";
 import { assertTransition, type SubmissionState } from "@/features/forms/schema/state-machine";
+import { log } from "./logger";
+
+/** Stale-state error class for compare-and-swap detection. */
+class StaleSubmissionError extends Error {
+  constructor() {
+    super("Submission telah diubah pihak lain. Muat ulang dan coba lagi.");
+    this.name = "StaleSubmissionError";
+  }
+}
 
 async function loadFormAndAssignment(opts: { assignmentId?: string; formId?: string; userId: string }) {
   if (opts.assignmentId) {
@@ -51,10 +60,10 @@ export const saveDraft = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
     const ctx = await getUserContext(supabaseAdmin, userId);
     if (data.submissionId) {
-      // update draft existing
+      // update draft existing — compare-and-swap pada version_number
       const { data: s } = await supabaseAdmin
         .from("form_submissions")
-        .select("id,user_id,status,form_id")
+        .select("id,user_id,status,form_id,version_number")
         .eq("id", data.submissionId)
         .maybeSingle();
       if (!s || s.user_id !== userId) throw new Error("Submission tidak valid");
@@ -63,14 +72,17 @@ export const saveDraft = createServerFn({ method: "POST" })
       }
       const nextStatus: SubmissionState = s.status === "revision_required" ? "draft" : (s.status as SubmissionState);
       if (s.status !== nextStatus) assertTransition(s.status as SubmissionState, nextStatus);
-      const { error } = await supabaseAdmin
+      const { data: upd, error } = await supabaseAdmin
         .from("form_submissions")
-        .update({
-          data: data.data as never,
-          status: nextStatus,
-        })
-        .eq("id", s.id);
+        .update({ data: data.data as never, status: nextStatus })
+        .eq("id", s.id)
+        .eq("version_number", s.version_number) // optimistic CAS
+        .select("id");
       if (error) throw new Error(error.message);
+      if (!upd || upd.length === 0) {
+        log.warn("submission.saveDraft.stale", { userId, submissionId: s.id });
+        throw new StaleSubmissionError();
+      }
       return { id: s.id };
     }
     const { assignment, form } = await loadFormAndAssignment({
@@ -137,11 +149,17 @@ export const submitSubmission = createServerFn({ method: "POST" })
       files: (files ?? []) as never,
       created_by: userId,
     });
-    const { error } = await supabaseAdmin
+    const { data: upd, error } = await supabaseAdmin
       .from("form_submissions")
       .update({ status: "submitted", submitted_at: new Date().toISOString(), data: parsed.data as never })
-      .eq("id", s.id);
+      .eq("id", s.id)
+      .eq("version_number", s.version_number)
+      .select("id");
     if (error) throw new Error(error.message);
+    if (!upd || upd.length === 0) {
+      log.warn("submission.submit.stale", { userId, submissionId: s.id });
+      throw new StaleSubmissionError();
+    }
     // Update assignment status
     if (s.assignment_id) {
       await supabaseAdmin.from("form_assignments").update({ status: "submitted" }).eq("id", s.assignment_id);
@@ -177,6 +195,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
 const reviewInput = z.object({
   submissionId: z.string().uuid(),
   note: z.string().trim().max(2000).optional().nullable(),
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 async function reviewerOrThrow(submissionId: string, userId: string) {
@@ -192,13 +211,21 @@ async function reviewerOrThrow(submissionId: string, userId: string) {
   return s;
 }
 
-async function transitionReview(submissionId: string, userId: string, to: SubmissionState, note: string | null | undefined) {
+async function transitionReview(
+  submissionId: string,
+  userId: string,
+  to: SubmissionState,
+  note: string | null | undefined,
+  expectedVersion?: number,
+) {
   const s = await reviewerOrThrow(submissionId, userId);
   if (!note && (to === "rejected" || to === "revision_required")) {
     throw new Error("Catatan wajib untuk reject / request revision");
   }
   assertTransition(s.status as SubmissionState, to);
-  const { error } = await supabaseAdmin
+  // Optimistic concurrency: client may pass expectedVersion, otherwise use server read.
+  const cas = expectedVersion ?? (s as { version_number: number }).version_number;
+  const { data: upd, error } = await supabaseAdmin
     .from("form_submissions")
     .update({
       status: to,
@@ -206,16 +233,24 @@ async function transitionReview(submissionId: string, userId: string, to: Submis
       reviewed_at: new Date().toISOString(),
       review_note: note ?? null,
     })
-    .eq("id", submissionId);
+    .eq("id", submissionId)
+    .eq("version_number", cas)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!upd || upd.length === 0) {
+    log.warn("submission.review.stale", { userId, submissionId, to });
+    throw new StaleSubmissionError();
+  }
+  log.info("submission.review.ok", { userId, submissionId, to });
   // notify submitter
   await enqueueNotification({
     userId: s.user_id,
     tipe: `form.${to}`,
     judul: `Submission "${(s.forms as { judul: string }).judul}" ${to}`,
     body: note ?? null,
-    link: s.assignment_id ? `/asn/tugas` : `/asn/tugas`,
+    link: `/asn/tugas`,
     meta: { submission_id: s.id, status: to },
+    dedupeKey: `${s.id}:${to}`,
   });
   // Jika revision_required + ada assignment, kembalikan assignment ke in_progress
   if (to === "revision_required" && s.assignment_id) {
@@ -229,7 +264,7 @@ export const approveSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "approved", data.note);
+    return transitionReview(data.submissionId, userId, "approved", data.note, data.expectedVersion);
   });
 
 export const rejectSubmission = createServerFn({ method: "POST" })
@@ -237,7 +272,7 @@ export const rejectSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "rejected", data.note);
+    return transitionReview(data.submissionId, userId, "rejected", data.note, data.expectedVersion);
   });
 
 export const requestRevision = createServerFn({ method: "POST" })
@@ -245,7 +280,7 @@ export const requestRevision = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "revision_required", data.note);
+    return transitionReview(data.submissionId, userId, "revision_required", data.note, data.expectedVersion);
   });
 
 export const listForReview = createServerFn({ method: "POST" })

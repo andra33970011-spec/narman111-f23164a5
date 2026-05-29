@@ -61,6 +61,18 @@ export const createUploadSession = createServerFn({ method: "POST" })
       .from(BUCKET)
       .createSignedUploadUrl(objectPath);
     if (error || !signed) throw new Error(error?.message ?? "Gagal membuat signed upload URL");
+    // Pre-create a pending row to track lifecycle (orphan if never finalized)
+    await supabaseAdmin.from("form_submission_files").insert({
+      submission_id: s.id,
+      field_kode: data.fieldKode,
+      storage_path: objectPath,
+      mime: data.mime,
+      size_bytes: data.sizeBytes,
+      uploaded_by: userId,
+      upload_started_at: new Date().toISOString(),
+      finalized_at: null,
+      cleanup_status: "pending_cleanup",
+    } as never);
     return {
       bucket: BUCKET,
       path: objectPath,
@@ -85,12 +97,37 @@ export const finalizeUpload = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
     await loadSubmissionOwned(data.submissionId, userId);
-    // Verifikasi file ada
+    // Verifikasi file ada di storage
     const folder = data.storagePath.split("/").slice(0, -1).join("/");
     const filename = data.storagePath.split("/").pop() ?? "";
     const { data: ls } = await supabaseAdmin.storage.from(BUCKET).list(folder, { limit: 100 });
     const found = (ls ?? []).find((o) => o.name === filename);
     if (!found) throw new Error("File belum diunggah dengan benar");
+    const realSize = (found.metadata?.size as number | undefined) ?? data.sizeBytes ?? null;
+    if (realSize && realSize > 25 * 1024 * 1024) throw new Error("Ukuran file melebihi batas");
+    // Cari pending row (dibuat saat createUploadSession). Jika tidak ada, insert (backward compat).
+    const { data: existing } = await supabaseAdmin
+      .from("form_submission_files")
+      .select("id")
+      .eq("submission_id", data.submissionId)
+      .eq("storage_path", data.storagePath)
+      .maybeSingle();
+    if (existing) {
+      const { data: row, error } = await supabaseAdmin
+        .from("form_submission_files")
+        .update({
+          mime: data.mime ?? null,
+          size_bytes: realSize,
+          finalized_at: new Date().toISOString(),
+          cleanup_status: "ok",
+        } as never)
+        .eq("id", existing.id)
+        .eq("uploaded_by", userId)
+        .select("id,storage_path,field_kode,mime,size_bytes")
+        .single();
+      if (error || !row) throw new Error(error?.message ?? "Gagal finalize");
+      return row;
+    }
     const { data: row, error } = await supabaseAdmin
       .from("form_submission_files")
       .insert({
@@ -98,9 +135,11 @@ export const finalizeUpload = createServerFn({ method: "POST" })
         field_kode: data.fieldKode,
         storage_path: data.storagePath,
         mime: data.mime ?? null,
-        size_bytes: data.sizeBytes ?? (found.metadata?.size as number | undefined) ?? null,
+        size_bytes: realSize,
         uploaded_by: userId,
-      })
+        finalized_at: new Date().toISOString(),
+        cleanup_status: "ok",
+      } as never)
       .select("id,storage_path,field_kode,mime,size_bytes")
       .single();
     if (error || !row) throw new Error(error?.message ?? "Gagal menyimpan referensi file");

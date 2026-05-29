@@ -725,33 +725,45 @@ export type Database = {
       }
       form_submission_files: {
         Row: {
+          cleanup_status: string
           created_at: string
           field_kode: string
+          finalized_at: string | null
           id: string
           mime: string | null
+          orphaned_at: string | null
           size_bytes: number | null
           storage_path: string
           submission_id: string
+          upload_started_at: string | null
           uploaded_by: string
         }
         Insert: {
+          cleanup_status?: string
           created_at?: string
           field_kode: string
+          finalized_at?: string | null
           id?: string
           mime?: string | null
+          orphaned_at?: string | null
           size_bytes?: number | null
           storage_path: string
           submission_id: string
+          upload_started_at?: string | null
           uploaded_by: string
         }
         Update: {
+          cleanup_status?: string
           created_at?: string
           field_kode?: string
+          finalized_at?: string | null
           id?: string
           mime?: string | null
+          orphaned_at?: string | null
           size_bytes?: number | null
           storage_path?: string
           submission_id?: string
+          upload_started_at?: string | null
           uploaded_by?: string
         }
         Relationships: [
@@ -818,6 +830,7 @@ export type Database = {
           submitted_at: string | null
           updated_at: string
           user_id: string
+          version_number: number
         }
         Insert: {
           assignment_id?: string | null
@@ -834,6 +847,7 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string
           user_id: string
+          version_number?: number
         }
         Update: {
           assignment_id?: string | null
@@ -850,6 +864,7 @@ export type Database = {
           submitted_at?: string | null
           updated_at?: string
           user_id?: string
+          version_number?: number
         }
         Relationships: [
           {
