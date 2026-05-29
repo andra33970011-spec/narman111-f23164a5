@@ -187,6 +187,7 @@ export const deleteSubmissionFile = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ fileId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadDelete);
     const { data: f } = await supabaseAdmin
       .from("form_submission_files")
       .select("id,storage_path,submission_id, form_submissions!inner(user_id,status)")
