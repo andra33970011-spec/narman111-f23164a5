@@ -112,6 +112,7 @@ export function subscribeRealtime({ channelName, binding, onPayload }: Subscribe
         /* ignore */
       }
       registry.delete(channelName);
+      seenEvents.delete(channelName);
     }
   };
 }
