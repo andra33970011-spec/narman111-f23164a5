@@ -252,6 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdminDesa: roles.includes("admin_desa"),
     isAdminOpd: roles.includes("admin_opd"),
     isAdminPemda: roles.includes("admin_pemda"),
+    isElevated: roles.includes("super_admin") || roles.includes("admin_pemda"),
     isAsn: roles.includes("asn"),
     isStaff:
       roles.includes("super_admin") ||
