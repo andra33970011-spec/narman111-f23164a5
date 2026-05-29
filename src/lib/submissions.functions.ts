@@ -60,10 +60,10 @@ export const saveDraft = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
     const ctx = await getUserContext(supabaseAdmin, userId);
     if (data.submissionId) {
-      // update draft existing
+      // update draft existing — compare-and-swap pada version_number
       const { data: s } = await supabaseAdmin
         .from("form_submissions")
-        .select("id,user_id,status,form_id")
+        .select("id,user_id,status,form_id,version_number")
         .eq("id", data.submissionId)
         .maybeSingle();
       if (!s || s.user_id !== userId) throw new Error("Submission tidak valid");
@@ -72,14 +72,17 @@ export const saveDraft = createServerFn({ method: "POST" })
       }
       const nextStatus: SubmissionState = s.status === "revision_required" ? "draft" : (s.status as SubmissionState);
       if (s.status !== nextStatus) assertTransition(s.status as SubmissionState, nextStatus);
-      const { error } = await supabaseAdmin
+      const { data: upd, error } = await supabaseAdmin
         .from("form_submissions")
-        .update({
-          data: data.data as never,
-          status: nextStatus,
-        })
-        .eq("id", s.id);
+        .update({ data: data.data as never, status: nextStatus })
+        .eq("id", s.id)
+        .eq("version_number", s.version_number) // optimistic CAS
+        .select("id");
       if (error) throw new Error(error.message);
+      if (!upd || upd.length === 0) {
+        log.warn("submission.saveDraft.stale", { userId, submissionId: s.id });
+        throw new StaleSubmissionError();
+      }
       return { id: s.id };
     }
     const { assignment, form } = await loadFormAndAssignment({
