@@ -3,6 +3,11 @@
 // from a server function context (RLS still applies).
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+// Loose client typing: CAS is table-name-driven and Supabase typed clients
+// require literal table names; we cast to `any` so this helper stays generic.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyClient = SupabaseClient<any, any, any>;
+
 export class CasConflictError extends Error {
   readonly code = "CAS_CONFLICT";
   readonly table: string;
