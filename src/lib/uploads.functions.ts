@@ -98,6 +98,7 @@ export const finalizeUpload = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadFinalize);
     await loadSubmissionOwned(data.submissionId, userId);
     // Verifikasi file ada di storage
     const folder = data.storagePath.split("/").slice(0, -1).join("/");
