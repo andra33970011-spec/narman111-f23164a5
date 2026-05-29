@@ -1,82 +1,52 @@
-# Tahap B — Konsolidasi Authorization Layer
+# Tahap B — Konsolidasi Authorization Layer (SELESAI)
 
-Tujuan: jadikan `src/features/rbac/guards.ts` sebagai single source of truth untuk authorization (server + UI), hilangkan duplikasi `getUserContext`, dan standardize permission/OPD scoping.
+## Yang sudah dikerjakan
 
-## Scope (tidak menambah fitur baru)
+### B1 — `src/features/rbac/guards.ts` (single source of truth)
+- Export `getUserContext(supabase, userId)` → `AuthzContext` (roles, opd_id, desa, isPimpinan, isElevated).
+- Helper sinkron baru (terima `AuthzContext`, no extra roundtrip):
+  `canAccessForm`, `canSubmitForm`, `canViewSubmission`, `canReviewSubmission`,
+  `canAccessAssignment`, `canUploadDocument`, `canShareDocument`,
+  `canRequestDocument`, `canManageFormCtx`, `isElevated`, `isSameOpd`, `isSameDesa`.
+- Util `assertOrThrow(check, msg)`.
+- Helper async legacy (`canManageForm`, `canVerifySubmission`,
+  `canApproveDataRequest`, `canApproveRegistration`, `canAccessSubmission`)
+  diarahkan ke `getUserContext` + permission RPC.
 
-### 1. Centralized server authorization — `src/features/rbac/guards.ts`
+### B2 — Refactor duplicate `getUserContext`
+File-file ini sekarang delegate ke `getUserContext` shared (shim tipis dipertahankan agar handler tidak perlu di-rewrite):
+- `src/lib/asn.functions.ts` (`userRolesAndOpd`)
+- `src/lib/aset.functions.ts` (`userCtx`)
+- `src/lib/dataset.functions.ts` (`userCtx`)
+- `src/lib/verification.functions.ts` (`getRoles`, `getDesa`)
+- `src/lib/admin-actions.functions.ts` (`assertSuperAdmin`, `assertAdminOrSuper`)
+- `src/features/rbac/admin.functions.ts` (`assertSuper`, `assertSuperOrPemda`)
 
-Tambah/normalisasi helper berikut. Semua menerima `(supabase, userId, resource)` dan return `boolean`. Sumber tunggal `getUserContext` (sudah ada) dipakai semua helper.
+### B3 — UI authorization & permission cache
+- `auth-context.tsx`: tambah `isElevated` (super_admin || admin_pemda).
+- Realtime listener `user_permissions` per user → invalidate permission cache.
+- `visibilitychange` refetch (throttle 60s) sebagai backstop.
+- Listener existing `user_roles` (forced logout on downgrade) dipertahankan.
 
-- `canAccessForm(supabase, userId, form: { opd_id, target_role })`
-- `canSubmitForm(supabase, userId, assignment: { user_id, form_id })`
-- `canViewSubmission(supabase, userId, submission: { user_id, opd_id })`
-- `canReviewSubmission(supabase, userId, submission: { opd_id })` — alias semantik untuk `canVerifySubmission`
-- `canAccessAssignment(supabase, userId, assignment: { user_id, opd_id })`
-- `canUploadDocument(supabase, userId, ctx: { opd_id })`
-- `canShareDocument(supabase, userId, doc: { owner_user_id, opd_id })`
-- `canRequestDocument(supabase, userId)`
+### B4 — Audit ringkas
+- Semua route admin (`admin.*.tsx`) sudah dibungkus `AdminGuard` lewat
+  `src/routes/__root.tsx`/`AdminShell`. Tidak ditemukan admin route tanpa guard.
+- Semua `createServerFn` di `src/lib/*.functions.ts` & `src/features/rbac/*.functions.ts`
+  menggunakan `requireSupabaseAuth` (kecuali public hooks di
+  `src/routes/api/public/hooks/*` yang sengaja terbuka untuk cron + verifikasi signature).
+- `PermissionGate` / `useCan` tetap satu-satunya jalur cek permission di UI.
 
-Tambah util:
-- `assertOrThrow(check: Promise<boolean>, msg?)` — wrapper untuk handler.
-- Export type `AuthzContext = Awaited<ReturnType<typeof getUserContext>>` agar bisa dipakai luar.
+## Catatan untuk Tahap C (workflow ASN)
 
-### 2. Konsolidasi `getUserContext` duplikat
+- Gunakan `getUserContext` SEKALI di awal handler, lalu pakai helper sinkron
+  (`canAccessForm`, `canViewSubmission`, dst) — jangan re-fetch role/opd.
+- Untuk operasi sangat sensitif (RBAC, audit, backup) tetap pakai
+  `assertSuper` / `assertSuperOrPemda` dari `admin.functions.ts`.
+- Permission baru → daftarkan di `src/features/rbac/constants.ts` + tabel
+  `permissions` (SQL); RPC `has_permission` & `get_effective_permissions`
+  sudah mengkonsumsi dari sana.
 
-File-file ini punya helper user-roles/OPD sendiri → refactor untuk import dari `guards.ts`:
-
-- `src/lib/asn.functions.ts` — `userRolesAndOpd()` → ganti `getUserContext` shared.
-- `src/lib/aset.functions.ts` — cek & ganti jika ada helper sejenis.
-- `src/lib/dataset.functions.ts` — cek & ganti.
-- `src/lib/verification.functions.ts` — cek & ganti.
-- `src/lib/admin-actions.functions.ts` — cek & ganti.
-- `src/features/rbac/admin.functions.ts` — `assertSuper/assertSuperOrPemda` tetap, tapi delegate ke `getUserContext`.
-
-Ekspos `getUserContext` dari `guards.ts` (saat ini private). Tetap server-only.
-
-### 3. Hardcoded role check → helper
-
-Cari `isSuperAdmin || isAdminOpd`, `roles.includes("admin_opd")`, `role === "..."` lalu ganti pakai `ctx.isSuper / ctx.isAdminOpd` dari `getUserContext` atau permission-based check.
-
-### 4. UI authorization consistency
-
-- `src/lib/auth-context.tsx`: tambah memo `isElevatedAdmin = isSuperAdmin || isAdminPemda` (jika belum) dan pastikan UI gates pakai itu, bukan re-check string role.
-- `AdminGuard.tsx`: tetap minimal, tapi pakai `isElevatedAdmin` + `isAdminDesa` untuk admin desa.
-- Pastikan `PermissionGate` / `useCan` (di `src/features/rbac/hooks.ts` & `components.tsx`) tetap satu-satunya jalur cek di komponen. Tidak ada perubahan API.
-
-### 5. Permission cache invalidation
-
-Di `auth-context.tsx`:
-- Listener `onAuthStateChange` untuk `TOKEN_REFRESHED`, `USER_UPDATED` → refetch `getEffectivePermissions`.
-- Realtime subscribe ke `user_roles` & `user_permissions` filter `user_id=eq.<me>` → invalidate permissions cache; jika role hilang → force signOut (sudah ada dari Tahap A, pastikan jalan untuk permission update juga).
-- Refetch on `visibilitychange` (focus polling ringan, 60s throttle).
-
-### 6. Type safety
-
-- Pastikan helper di `guards.ts` menerima `Permission`/`AppRole` dari `constants.ts` (sudah typed).
-- Return type `AuthzResult = { allowed: boolean; reason?: string }` opsional — TIDAK diadopsi sekarang agar perubahan minimal; tetap boolean + throw.
-
-### 7. Audit pass
-
-Grep cepat:
-- `createServerFn` tanpa `requireSupabaseAuth` middleware (kecuali public hooks) → tandai.
-- Route `admin.*.tsx` tanpa `AdminGuard` → tandai.
-- Komponen yang menampilkan tombol admin tanpa `useCan`/`PermissionGate` → tandai.
-
-Output audit ditulis sebagai komentar singkat di `.lovable/plan.md` (bukan rewrite besar).
-
-## Non-goals
-
-- Tidak menambah workflow ASN baru.
-- Tidak mengubah skema DB.
-- Tidak mengubah UI visual.
-- Tidak refactor RLS policies (sudah selesai Tahap A).
-
-## Batches
-
-1. **B1** — `guards.ts`: export `getUserContext`, tambah 8 helper baru.
-2. **B2** — Refactor server fn (asn, aset, dataset, verification, admin-actions) untuk pakai shared context.
-3. **B3** — `auth-context.tsx`: tambah realtime permission invalidation + visibility refetch.
-4. **B4** — Audit pass + ringkasan di `.lovable/plan.md`.
-
-Setiap batch selesai → typecheck via build harness.
+## Non-goals (sengaja tidak dilakukan)
+- Tidak ada perubahan skema DB / RLS.
+- Tidak ada perubahan visual UI.
+- Tidak ada workflow ASN baru — disimpan untuk Tahap C.
