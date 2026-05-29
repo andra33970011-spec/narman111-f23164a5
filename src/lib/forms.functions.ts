@@ -106,6 +106,7 @@ export const createForm = createServerFn({ method: "POST" })
   });
 
 export const updateFormMeta = createServerFn({ method: "POST" })
+export const updateFormMeta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
@@ -122,7 +123,12 @@ export const updateFormMeta = createServerFn({ method: "POST" })
     const { userId } = context as { userId: string };
     const { form } = await requireFormAccess(data.id, userId);
     if (form.status !== "draft") throw new Error("Form yang sudah dipublish tidak bisa diubah metadatanya");
-    const payload: Record<string, unknown> = {};
+    const payload: {
+      judul?: string;
+      deskripsi?: string | null;
+      deadline?: string | null;
+      allow_multiple_submit?: boolean;
+    } = {};
     if (data.judul !== undefined) payload.judul = data.judul;
     if (data.deskripsi !== undefined) payload.deskripsi = data.deskripsi;
     if (data.deadline !== undefined) payload.deadline = data.deadline;
@@ -131,7 +137,6 @@ export const updateFormMeta = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
-
 export const saveFormFields = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
