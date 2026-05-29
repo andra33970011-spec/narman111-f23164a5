@@ -256,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // — backstop bila koneksi realtime sempat putus.
   useEffect(() => {
     if (!user?.id) return;
+    if (typeof document === "undefined") return;
     let last = Date.now();
     const onVis = () => {
       if (document.visibilityState !== "visible") return;
@@ -266,6 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.addEventListener("visibilitychange", onVis);
     return () => document.removeEventListener("visibilitychange", onVis);
   }, [user?.id]);
+
 
 
 
