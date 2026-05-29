@@ -143,6 +143,24 @@ export async function runStaleUploadCleanup(): Promise<CleanupResult> {
   }
 
   result.durationMs = Date.now() - start;
-  log.info("cleanup.summary", result);
+  log.info("cleanup.summary", { ...result, requestId });
+
+  // Finalize cron history row
+  if (historyId) {
+    try {
+      await supabaseAdmin
+        .from("cron_history")
+        .update({
+          finished_at: new Date().toISOString(),
+          duration_ms: result.durationMs,
+          status: result.failedDeletes > 0 ? "completed_with_errors" : "completed",
+          affected_rows: result.deletedRows + result.taggedOrphan,
+          meta: result as unknown as never,
+        } as never)
+        .eq("id", historyId);
+    } catch {
+      /* non-fatal */
+    }
+  }
   return result;
 }
