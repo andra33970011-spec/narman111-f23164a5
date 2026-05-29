@@ -723,6 +723,151 @@ export type Database = {
           },
         ]
       }
+      form_submission_files: {
+        Row: {
+          created_at: string
+          field_kode: string
+          id: string
+          mime: string | null
+          size_bytes: number | null
+          storage_path: string
+          submission_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          field_kode: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          submission_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          field_kode?: string
+          id?: string
+          mime?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          submission_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submission_files_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submission_versions: {
+        Row: {
+          created_at: string
+          created_by: string
+          data: Json
+          files: Json
+          id: string
+          submission_id: string
+          version: number
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          data?: Json
+          files?: Json
+          id?: string
+          submission_id: string
+          version: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          data?: Json
+          files?: Json
+          id?: string
+          submission_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submission_versions_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_submissions: {
+        Row: {
+          assignment_id: string | null
+          created_at: string
+          data: Json
+          form_id: string
+          id: string
+          opd_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          schema_version_snapshot: Json
+          status: string
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          assignment_id?: string | null
+          created_at?: string
+          data?: Json
+          form_id: string
+          id?: string
+          opd_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version_snapshot?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          assignment_id?: string | null
+          created_at?: string
+          data?: Json
+          form_id?: string
+          id?: string
+          opd_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          schema_version_snapshot?: Json
+          status?: string
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "form_assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_targets: {
         Row: {
           created_at: string
@@ -767,6 +912,8 @@ export type Database = {
           judul: string
           opd_pemilik_id: string | null
           published_at: string | null
+          published_by: string | null
+          schema_snapshot: Json
           status: Database["public"]["Enums"]["form_status"]
           updated_at: string
         }
@@ -781,6 +928,8 @@ export type Database = {
           judul: string
           opd_pemilik_id?: string | null
           published_at?: string | null
+          published_by?: string | null
+          schema_snapshot?: Json
           status?: Database["public"]["Enums"]["form_status"]
           updated_at?: string
         }
@@ -795,6 +944,8 @@ export type Database = {
           judul?: string
           opd_pemilik_id?: string | null
           published_at?: string | null
+          published_by?: string | null
+          schema_snapshot?: Json
           status?: Database["public"]["Enums"]["form_status"]
           updated_at?: string
         }
