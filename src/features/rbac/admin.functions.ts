@@ -7,18 +7,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getUserContext } from "./guards";
 
 async function assertSuper(userId: string) {
-  const { data } = await supabaseAdmin
-    .from("user_roles").select("role").eq("user_id", userId).eq("role", "super_admin").maybeSingle();
-  if (!data) throw new Error("Forbidden: hanya Super Admin");
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  if (!ctx.isSuper) throw new Error("Forbidden: hanya Super Admin");
 }
 
 async function assertSuperOrPemda(userId: string) {
-  const { data } = await supabaseAdmin
-    .from("user_roles").select("role").eq("user_id", userId)
-    .in("role", ["super_admin", "admin_pemda"]);
-  if (!data || data.length === 0) throw new Error("Forbidden: hanya Super Admin / Admin Pemda");
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  if (!ctx.isElevated) throw new Error("Forbidden: hanya Super Admin / Admin Pemda");
 }
 
 // Daftar permission yang dianggap "elevated" — grant via override hanya
