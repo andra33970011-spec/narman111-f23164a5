@@ -24,20 +24,16 @@ const kolomSchema = z.object({
 });
 
 async function userCtx(userId: string) {
-  const [{ data: roles }, { data: prof }, { data: pej }] = await Promise.all([
-    supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
-    supabaseAdmin.from("profiles").select("opd_id,nama_lengkap").eq("id", userId).maybeSingle(),
-    supabaseAdmin.from("pejabat").select("is_pimpinan").eq("user_id", userId).eq("aktif", true).maybeSingle(),
-  ]);
-  const r = (roles ?? []).map((x) => x.role);
+  const ctx = await getUserContext(supabaseAdmin, userId);
   return {
-    isSuper: r.includes("super_admin"),
-    isAdminOpd: r.includes("admin_opd"),
-    isAsn: r.includes("asn"),
-    isPimpinan: !!pej?.is_pimpinan,
-    opdId: (prof?.opd_id as string | null) ?? null,
+    isSuper: ctx.isSuper,
+    isAdminOpd: ctx.isAdminOpd,
+    isAsn: ctx.isAsn,
+    isPimpinan: ctx.isPimpinan,
+    opdId: ctx.opdId,
   };
 }
+
 
 // ============= TEMPLATE CRUD =============
 export const upsertTemplate = createServerFn({ method: "POST" })
