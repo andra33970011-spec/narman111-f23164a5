@@ -161,6 +161,7 @@ export const getSignedPreview = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadPreview);
     const ctx = await getUserContext(supabaseAdmin, userId);
     const { data: f } = await supabaseAdmin
       .from("form_submission_files")
