@@ -11,6 +11,7 @@ import {
   type FormSchemaSnapshot,
 } from "@/features/forms/schema/types";
 import { generateAssignmentsForForm } from "./assignments.functions";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 async function requireFormAccess(formId: string, userId: string) {
   const { data: form, error } = await supabaseAdmin
@@ -211,6 +212,7 @@ export const publishForm = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.formPublish);
     const { form } = await requireFormAccess(data.id, userId);
     if (form.status !== "draft") throw new Error("Hanya form draft yang bisa dipublish");
     const { data: fields } = await supabaseAdmin

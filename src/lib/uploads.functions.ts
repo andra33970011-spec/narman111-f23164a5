@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getUserContext, canViewSubmission, canReviewSubmission } from "@/features/rbac/guards";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 const BUCKET = "form-submissions";
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB
@@ -54,6 +55,7 @@ export const createUploadSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadSignedUrl);
     const s = await loadSubmissionOwned(data.submissionId, userId);
     if (!ALLOWED_MIME.has(data.mime)) throw new Error(`Tipe file tidak didukung: ${data.mime}`);
     const objectPath = `submissions/${s.id}/${data.fieldKode}/${crypto.randomUUID()}-${sanitizeFilename(data.filename)}`;
@@ -96,6 +98,7 @@ export const finalizeUpload = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadFinalize);
     await loadSubmissionOwned(data.submissionId, userId);
     // Verifikasi file ada di storage
     const folder = data.storagePath.split("/").slice(0, -1).join("/");
@@ -158,6 +161,7 @@ export const getSignedPreview = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadPreview);
     const ctx = await getUserContext(supabaseAdmin, userId);
     const { data: f } = await supabaseAdmin
       .from("form_submission_files")
@@ -183,6 +187,7 @@ export const deleteSubmissionFile = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ fileId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadDelete);
     const { data: f } = await supabaseAdmin
       .from("form_submission_files")
       .select("id,storage_path,submission_id, form_submissions!inner(user_id,status)")

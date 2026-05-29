@@ -13,6 +13,7 @@ import type { FormSchemaSnapshot } from "@/features/forms/schema/types";
 import { enqueueNotification } from "./notifications.functions";
 import { assertTransition, type SubmissionState } from "@/features/forms/schema/state-machine";
 import { log } from "./logger";
+import { enforceRateLimit, RateLimits } from "./security/rate-limit";
 
 /** Stale-state error class for compare-and-swap detection. */
 class StaleSubmissionError extends Error {
@@ -58,6 +59,7 @@ export const saveDraft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.submissionDraft);
     const ctx = await getUserContext(supabaseAdmin, userId);
     if (data.submissionId) {
       // update draft existing — compare-and-swap pada version_number
@@ -112,6 +114,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ submissionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.submissionSubmit);
     const { data: s } = await supabaseAdmin
       .from("form_submissions")
       .select("*, forms(id,judul,opd_pemilik_id,schema_snapshot)")
@@ -218,6 +221,7 @@ async function transitionReview(
   note: string | null | undefined,
   expectedVersion?: number,
 ) {
+  await enforceRateLimit(userId, RateLimits.submissionReview);
   const s = await reviewerOrThrow(submissionId, userId);
   if (!note && (to === "rejected" || to === "revision_required")) {
     throw new Error("Catatan wajib untuk reject / request revision");
