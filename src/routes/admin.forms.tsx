@@ -1,11 +1,23 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { z } from "zod";
 import { AdminGuard } from "@/components/admin/AdminGuard";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { listForms, createForm } from "@/lib/forms.functions";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import { Plus, FileText, ExternalLink } from "lucide-react";
 
+const STATUSES = ["draft", "published", "archived"] as const;
+type StatusFilter = typeof STATUSES[number] | "";
+
+const searchSchema = z.object({
+  status: z.enum(["", ...STATUSES]).catch("").default(""),
+  page: z.number().int().min(1).catch(1).default(1),
+  pageSize: z.number().int().min(5).max(50).catch(20).default(20),
+});
+
 export const Route = createFileRoute("/admin/forms")({
+  validateSearch: searchSchema,
   head: () => ({ meta: [{ title: "Admin — Form Builder" }, { name: "robots", content: "noindex" }] }),
   component: () => (
     <AdminGuard>
@@ -19,27 +31,43 @@ export const Route = createFileRoute("/admin/forms")({
 type Row = { id: string; judul: string; status: string; deadline: string | null; published_at: string | null; created_at: string };
 
 function Page() {
-  const nav = useNavigate();
+  const search = useSearch({ from: "/admin/forms" });
+  const nav = useNavigate({ from: "/admin/forms" });
   const [rows, setRows] = useState<Row[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"" | "draft" | "published" | "archived">("");
   const [openNew, setOpenNew] = useState(false);
   const [judul, setJudul] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function load() {
-    setLoading(true);
-    try {
-      const r = (await listForms({ data: statusFilter ? { status: statusFilter, page: 0, pageSize: 50 } : { page: 0, pageSize: 50 } })) as { rows: Row[] };
-      setRows(r.rows);
-    } finally {
-      setLoading(false);
-    }
-  }
+  const statusFilter = search.status as StatusFilter;
+  const page = search.page;
+  const pageSize = search.pageSize;
+
   useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusFilter]);
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        const payload: { page: number; pageSize: number; status?: typeof STATUSES[number] } = {
+          page: page - 1,
+          pageSize,
+        };
+        if (statusFilter) payload.status = statusFilter;
+        const r = (await listForms({ data: payload })) as unknown as { rows: Row[]; total: number };
+        if (cancelled) return;
+        setRows(r.rows);
+        setTotal(r.total);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [statusFilter, page, pageSize]);
+
+  function updateSearch(patch: Partial<typeof search>) {
+    nav({ search: (prev) => ({ ...prev, ...patch }), replace: true });
+  }
 
   async function onCreate() {
     if (judul.trim().length < 3) return alert("Judul minimal 3 karakter");
@@ -66,7 +94,7 @@ function Page() {
         <div className="flex items-center gap-2">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            onChange={(e) => updateSearch({ status: e.target.value as StatusFilter, page: 1 })}
             className="h-9 rounded-md border border-border bg-background px-2 text-sm"
           >
             <option value="">Semua Status</option>
@@ -80,43 +108,53 @@ function Page() {
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-border bg-card">
-        <table className="min-w-full text-sm">
-          <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-3 py-2">Judul</th>
-              <th className="px-3 py-2">Status</th>
-              <th className="px-3 py-2">Deadline</th>
-              <th className="px-3 py-2">Dibuat</th>
-              <th className="px-3 py-2">Aksi</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {loading && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Memuat…</td></tr>
-            )}
-            {!loading && rows.length === 0 && (
-              <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Belum ada form.</td></tr>
-            )}
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className="px-3 py-2 font-medium flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground" />{r.judul}</td>
-                <td className="px-3 py-2">
-                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${r.status === "published" ? "bg-success/15 text-success" : r.status === "archived" ? "bg-muted text-muted-foreground" : "bg-amber-100 text-amber-700"}`}>
-                    {r.status}
-                  </span>
-                </td>
-                <td className="px-3 py-2 text-xs">{r.deadline ? new Date(r.deadline).toLocaleDateString("id-ID") : "—"}</td>
-                <td className="px-3 py-2 text-xs">{new Date(r.created_at).toLocaleDateString("id-ID")}</td>
-                <td className="px-3 py-2">
-                  <Link to="/admin/forms/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
-                    <ExternalLink className="h-3 w-3" /> Buka
-                  </Link>
-                </td>
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2">Judul</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Deadline</th>
+                <th className="px-3 py-2">Dibuat</th>
+                <th className="px-3 py-2">Aksi</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading && (
+                <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Memuat…</td></tr>
+              )}
+              {!loading && rows.length === 0 && (
+                <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Belum ada form.</td></tr>
+              )}
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="px-3 py-2 font-medium flex items-center gap-2"><FileText className="h-3.5 w-3.5 text-muted-foreground" />{r.judul}</td>
+                  <td className="px-3 py-2">
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${r.status === "published" ? "bg-success/15 text-success" : r.status === "archived" ? "bg-muted text-muted-foreground" : "bg-amber-100 text-amber-700"}`}>
+                      {r.status}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-xs">{r.deadline ? new Date(r.deadline).toLocaleDateString("id-ID") : "—"}</td>
+                  <td className="px-3 py-2 text-xs">{new Date(r.created_at).toLocaleDateString("id-ID")}</td>
+                  <td className="px-3 py-2">
+                    <Link to="/admin/forms/$id" params={{ id: r.id }} className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs hover:bg-muted">
+                      <ExternalLink className="h-3 w-3" /> Buka
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <PaginationBar
+          page={page - 1}
+          pageSize={pageSize}
+          total={total}
+          loading={loading}
+          onPageChange={(p) => updateSearch({ page: p + 1 })}
+          onPageSizeChange={(n) => updateSearch({ pageSize: n, page: 1 })}
+        />
       </div>
 
       {openNew && (
