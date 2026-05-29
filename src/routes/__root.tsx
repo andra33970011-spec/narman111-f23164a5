@@ -55,8 +55,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Satu Pelayanan Pemerintah" },
       { name: "twitter:description", content: "A government portal for centralized data and public services, featuring a citizen-facing website and an admin dashboard." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/d919d65e-5572-430a-b42e-4493b71cf294" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/d919d65e-5572-430a-b42e-4493b71cf294" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f0809545-8a58-47eb-90cd-e5d175a6d0e8" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f0809545-8a58-47eb-90cd-e5d175a6d0e8" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
