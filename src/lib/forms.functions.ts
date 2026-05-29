@@ -106,7 +106,6 @@ export const createForm = createServerFn({ method: "POST" })
   });
 
 export const updateFormMeta = createServerFn({ method: "POST" })
-export const updateFormMeta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
