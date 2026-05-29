@@ -6,6 +6,7 @@ import { PushAutoEnable } from "@/components/site/PushAutoEnable";
 import { PermohonanNotifier } from "@/components/site/PermohonanNotifier";
 import { InstallPWAFloating } from "@/components/site/InstallPWAFloating";
 import { DynamicBrandingHead } from "@/components/site/DynamicBrandingHead";
+import { AppErrorBoundary } from "@/components/site/AppErrorBoundary";
 
 import appCss from "../styles.css?url";
 
