@@ -114,6 +114,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => z.object({ submissionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.submissionSubmit);
     const { data: s } = await supabaseAdmin
       .from("form_submissions")
       .select("*, forms(id,judul,opd_pemilik_id,schema_snapshot)")
