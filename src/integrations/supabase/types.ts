@@ -56,6 +56,13 @@ export type Database = {
             referencedRelation: "opd"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "absensi_asn_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       app_setting: {
@@ -139,6 +146,13 @@ export type Database = {
             referencedRelation: "opd"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "aset_pemegang_user_id_fkey"
+            columns: ["pemegang_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       aset_riwayat: {
@@ -184,6 +198,13 @@ export type Database = {
             columns: ["aset_id"]
             isOneToOne: false
             referencedRelation: "aset"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "aset_riwayat_oleh_fkey"
+            columns: ["oleh"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
