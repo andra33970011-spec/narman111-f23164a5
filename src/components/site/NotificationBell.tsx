@@ -1,9 +1,10 @@
-// Notification bell with scoped realtime channel and optimistic mark-as-read.
-import { useEffect, useState, useCallback, useRef } from "react";
+// Notification bell with scoped realtime channel (via realtime manager),
+// kategori filter, load-more pagination, and optimistic mark-as-read.
+import { useEffect, useState, useCallback } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
+import { subscribeUserNotifications } from "@/lib/realtime/manager";
 import {
   listMyNotifications,
   unreadCount,
@@ -21,13 +22,27 @@ type Notif = {
   created_at: string;
 };
 
+type Kategori = "all" | "assignment" | "review" | "approval" | "rejection" | "revision" | "upload" | "sharing" | "system";
+
+const KATEGORI_LABELS: { value: Kategori; label: string }[] = [
+  { value: "all", label: "Semua" },
+  { value: "assignment", label: "Tugas" },
+  { value: "review", label: "Review" },
+  { value: "approval", label: "Disetujui" },
+  { value: "revision", label: "Revisi" },
+];
+
+const PAGE_SIZE = 15;
+
 export function NotificationBell() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(0);
   const [rows, setRows] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(false);
-  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [kategori, setKategori] = useState<Kategori>("all");
 
   const refreshCount = useCallback(async () => {
     if (!user?.id) return;
@@ -39,18 +54,27 @@ export function NotificationBell() {
     }
   }, [user?.id]);
 
-  const loadList = useCallback(async () => {
-    if (!user?.id) return;
-    setLoading(true);
-    try {
-      const r = (await listMyNotifications({ data: { page: 0, pageSize: 15 } })) as { rows: Notif[] };
-      setRows(r.rows ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const loadList = useCallback(
+    async (opts: { reset?: boolean; kategori?: Kategori; page?: number } = {}) => {
+      if (!user?.id) return;
+      setLoading(true);
+      try {
+        const targetPage = opts.page ?? 0;
+        const targetKategori = opts.kategori ?? kategori;
+        const r = (await listMyNotifications({
+          data: { page: targetPage, pageSize: PAGE_SIZE, kategori: targetKategori },
+        })) as { rows: Notif[]; total: number };
+        setTotal(r.total ?? 0);
+        setRows((prev) => (opts.reset || targetPage === 0 ? r.rows ?? [] : [...prev, ...(r.rows ?? [])]));
+        setPage(targetPage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user?.id, kategori],
+  );
 
-  // Scoped realtime channel per user
+  // Subscribe ONCE per user (no `open` in deps — fixes re-subscribe bug)
   useEffect(() => {
     if (!user?.id) {
       setCount(0);
@@ -58,27 +82,16 @@ export function NotificationBell() {
       return;
     }
     refreshCount();
-    const ch = supabase
-      .channel(`notifications:user:${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => {
-          setCount((c) => c + 1);
-          if (open) loadList();
-        },
-      )
-      .subscribe();
-    channelRef.current = ch;
-    return () => {
-      if (channelRef.current) supabase.removeChannel(channelRef.current);
-      channelRef.current = null;
-    };
-  }, [user?.id, open, refreshCount, loadList]);
+    const unsubscribe = subscribeUserNotifications(user.id, () => {
+      setCount((c) => c + 1);
+    });
+    return unsubscribe;
+  }, [user?.id, refreshCount]);
 
+  // Load list when opening or changing kategori
   useEffect(() => {
-    if (open) loadList();
-  }, [open, loadList]);
+    if (open) loadList({ reset: true, page: 0 });
+  }, [open, kategori, loadList]);
 
   async function handleMarkAll() {
     const prev = count;
@@ -87,7 +100,7 @@ export function NotificationBell() {
     try {
       await markAllRead();
     } catch {
-      setCount(prev); // rollback on failure
+      setCount(prev);
     }
   }
 
@@ -98,13 +111,15 @@ export function NotificationBell() {
       try {
         await markRead({ data: { ids: [n.id] } });
       } catch {
-        /* swallow; UI already updated */
+        /* swallow */
       }
     }
     setOpen(false);
   }
 
   if (!user) return null;
+
+  const hasMore = rows.length < total;
 
   return (
     <div className="relative">
@@ -124,7 +139,7 @@ export function NotificationBell() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-50 mt-2 w-[340px] max-w-[92vw] rounded-lg border border-border bg-popover shadow-elegant">
+          <div className="absolute right-0 z-50 mt-2 w-[360px] max-w-[92vw] rounded-lg border border-border bg-popover shadow-elegant">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <span className="text-sm font-semibold">Notifikasi</span>
               <button
@@ -135,39 +150,66 @@ export function NotificationBell() {
                 <CheckCheck className="h-3.5 w-3.5" /> Tandai semua dibaca
               </button>
             </div>
+            <div className="flex gap-1 overflow-x-auto border-b border-border/60 px-2 py-1.5">
+              {KATEGORI_LABELS.map((k) => (
+                <button
+                  key={k.value}
+                  type="button"
+                  onClick={() => setKategori(k.value)}
+                  className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium transition ${
+                    kategori === k.value
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {k.label}
+                </button>
+              ))}
+            </div>
             <div className="max-h-[60vh] overflow-y-auto">
-              {loading && <div className="px-3 py-6 text-center text-xs text-muted-foreground">Memuat…</div>}
+              {loading && rows.length === 0 && (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">Memuat…</div>
+              )}
               {!loading && rows.length === 0 && (
                 <div className="px-3 py-10 text-center text-xs text-muted-foreground">Tidak ada notifikasi</div>
               )}
-              {!loading &&
-                rows.map((n) => {
-                  const content = (
-                    <div
-                      className={`flex flex-col gap-0.5 border-b border-border/60 px-3 py-2 text-sm transition hover:bg-muted ${n.read_at ? "opacity-70" : "bg-primary/[0.03]"}`}
-                    >
-                      <span className="font-medium leading-tight">{n.judul}</span>
-                      {n.body && <span className="line-clamp-2 text-xs text-muted-foreground">{n.body}</span>}
-                      <span className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                        {new Date(n.created_at).toLocaleString("id-ID")}
-                      </span>
-                    </div>
-                  );
-                  return n.link ? (
-                    <Link key={n.id} to={n.link} onClick={() => handleOpenItem(n)}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <button
-                      key={n.id}
-                      type="button"
-                      onClick={() => handleOpenItem(n)}
-                      className="block w-full text-left"
-                    >
-                      {content}
-                    </button>
-                  );
-                })}
+              {rows.map((n) => {
+                const content = (
+                  <div
+                    className={`flex flex-col gap-0.5 border-b border-border/60 px-3 py-2 text-sm transition hover:bg-muted ${n.read_at ? "opacity-70" : "bg-primary/[0.03]"}`}
+                  >
+                    <span className="font-medium leading-tight">{n.judul}</span>
+                    {n.body && <span className="line-clamp-2 text-xs text-muted-foreground">{n.body}</span>}
+                    <span className="mt-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString("id-ID")}
+                    </span>
+                  </div>
+                );
+                return n.link ? (
+                  <Link key={n.id} to={n.link} onClick={() => handleOpenItem(n)}>
+                    {content}
+                  </Link>
+                ) : (
+                  <button
+                    key={n.id}
+                    type="button"
+                    onClick={() => handleOpenItem(n)}
+                    className="block w-full text-left"
+                  >
+                    {content}
+                  </button>
+                );
+              })}
+              {hasMore && (
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => loadList({ page: page + 1 })}
+                  className="block w-full px-3 py-2 text-center text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+                >
+                  {loading ? "Memuat…" : "Muat lebih banyak"}
+                </button>
+              )}
             </div>
           </div>
         </>
