@@ -207,6 +207,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // Realtime: dengarkan perubahan permission override agar UI gates langsung
+  // sinkron saat super admin grant/revoke izin granular.
+  useEffect(() => {
+    if (!user?.id) return;
+    const channel = supabase
+      .channel(`perms-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "user_permissions", filter: `user_id=eq.${user.id}` },
+        () => { loadPermissions(user.id); },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user?.id]);
+
+  // Refetch permissions saat tab kembali aktif (≥ 60 detik sejak terakhir fetch)
+  // — backstop bila koneksi realtime sempat putus.
+  useEffect(() => {
+    if (!user?.id) return;
+    let last = Date.now();
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - last < 60_000) return;
+      last = Date.now();
+      loadPermissions(user.id);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, [user?.id]);
+
+
 
   const value: AuthCtx = {
     user,
