@@ -30,6 +30,8 @@ type AuthCtx = {
   isAdminDesa: boolean;
   isAdminOpd: boolean;
   isAdminPemda: boolean;
+  /** Super admin atau Admin Pemda — punya cakupan lintas-OPD. */
+  isElevated: boolean;
   isAsn: boolean;
   isStaff: boolean;
   isVerified: boolean;
