@@ -5,6 +5,7 @@ import lambang from "@/assets/lambang.png";
 import { useAuth } from "@/lib/auth-context";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteBranding } from "@/lib/site-settings";
+import { NotificationBell } from "@/components/site/NotificationBell";
 
 const navItems = [
   { to: "/", label: "Beranda" },
