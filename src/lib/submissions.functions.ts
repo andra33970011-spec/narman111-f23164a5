@@ -264,7 +264,7 @@ export const approveSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "approved", data.note);
+    return transitionReview(data.submissionId, userId, "approved", data.note, data.expectedVersion);
   });
 
 export const rejectSubmission = createServerFn({ method: "POST" })
@@ -272,7 +272,7 @@ export const rejectSubmission = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "rejected", data.note);
+    return transitionReview(data.submissionId, userId, "rejected", data.note, data.expectedVersion);
   });
 
 export const requestRevision = createServerFn({ method: "POST" })
@@ -280,7 +280,7 @@ export const requestRevision = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => reviewInput.parse(input))
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
-    return transitionReview(data.submissionId, userId, "revision_required", data.note);
+    return transitionReview(data.submissionId, userId, "revision_required", data.note, data.expectedVersion);
   });
 
 export const listForReview = createServerFn({ method: "POST" })
