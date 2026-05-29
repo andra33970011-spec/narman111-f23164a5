@@ -32,7 +32,7 @@ function Page() {
   async function load() {
     setLoading(true);
     try {
-      const r = (await getAssignment({ data: { id: assignmentId } })) as {
+      const r = (await getAssignment({ data: { id: assignmentId } })) as unknown as {
         assignment: { id: string; forms: { judul: string; schema_snapshot: FormSchemaSnapshot } };
         submission: SubmissionRow | null;
       };

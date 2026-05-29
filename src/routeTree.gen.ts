@@ -22,6 +22,7 @@ import { Route as PermohonanIndexRouteImport } from './routes/permohonan.index'
 import { Route as PengisianIndexRouteImport } from './routes/pengisian.index'
 import { Route as LayananIndexRouteImport } from './routes/layanan.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as TugasAssignmentIdRouteImport } from './routes/tugas.$assignmentId'
 import { Route as PermohonanBaruRouteImport } from './routes/permohonan.baru'
 import { Route as PermohonanIdRouteImport } from './routes/permohonan.$id'
 import { Route as PengisianIdRouteImport } from './routes/pengisian.$id'
@@ -33,6 +34,7 @@ import { Route as AsnAbsensiRouteImport } from './routes/asn.absensi'
 import { Route as AdminVerifikasiLogRouteImport } from './routes/admin.verifikasi-log'
 import { Route as AdminVerifikasiRouteImport } from './routes/admin.verifikasi'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSubmissionReviewRouteImport } from './routes/admin.submission-review'
 import { Route as AdminStorageRouteImport } from './routes/admin.storage'
 import { Route as AdminRbacRouteImport } from './routes/admin.rbac'
 import { Route as AdminRatingRouteImport } from './routes/admin.rating'
@@ -122,6 +124,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TugasAssignmentIdRoute = TugasAssignmentIdRouteImport.update({
+  id: '/tugas/$assignmentId',
+  path: '/tugas/$assignmentId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PermohonanBaruRoute = PermohonanBaruRouteImport.update({
   id: '/permohonan/baru',
   path: '/permohonan/baru',
@@ -175,6 +182,11 @@ const AdminVerifikasiRoute = AdminVerifikasiRouteImport.update({
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSubmissionReviewRoute = AdminSubmissionReviewRouteImport.update({
+  id: '/admin/submission-review',
+  path: '/admin/submission-review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminStorageRoute = AdminStorageRouteImport.update({
@@ -322,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/admin/rating': typeof AdminRatingRoute
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
+  '/admin/submission-review': typeof AdminSubmissionReviewRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -333,6 +346,7 @@ export interface FileRoutesByFullPath {
   '/pengisian/$id': typeof PengisianIdRoute
   '/permohonan/$id': typeof PermohonanIdRoute
   '/permohonan/baru': typeof PermohonanBaruRoute
+  '/tugas/$assignmentId': typeof TugasAssignmentIdRoute
   '/admin/': typeof AdminIndexRoute
   '/layanan/': typeof LayananIndexRoute
   '/pengisian/': typeof PengisianIndexRoute
@@ -371,6 +385,7 @@ export interface FileRoutesByTo {
   '/admin/rating': typeof AdminRatingRoute
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
+  '/admin/submission-review': typeof AdminSubmissionReviewRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -382,6 +397,7 @@ export interface FileRoutesByTo {
   '/pengisian/$id': typeof PengisianIdRoute
   '/permohonan/$id': typeof PermohonanIdRoute
   '/permohonan/baru': typeof PermohonanBaruRoute
+  '/tugas/$assignmentId': typeof TugasAssignmentIdRoute
   '/admin': typeof AdminIndexRoute
   '/layanan': typeof LayananIndexRoute
   '/pengisian': typeof PengisianIndexRoute
@@ -421,6 +437,7 @@ export interface FileRoutesById {
   '/admin/rating': typeof AdminRatingRoute
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
+  '/admin/submission-review': typeof AdminSubmissionReviewRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -432,6 +449,7 @@ export interface FileRoutesById {
   '/pengisian/$id': typeof PengisianIdRoute
   '/permohonan/$id': typeof PermohonanIdRoute
   '/permohonan/baru': typeof PermohonanBaruRoute
+  '/tugas/$assignmentId': typeof TugasAssignmentIdRoute
   '/admin/': typeof AdminIndexRoute
   '/layanan/': typeof LayananIndexRoute
   '/pengisian/': typeof PengisianIndexRoute
@@ -472,6 +490,7 @@ export interface FileRouteTypes {
     | '/admin/rating'
     | '/admin/rbac'
     | '/admin/storage'
+    | '/admin/submission-review'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -483,6 +502,7 @@ export interface FileRouteTypes {
     | '/pengisian/$id'
     | '/permohonan/$id'
     | '/permohonan/baru'
+    | '/tugas/$assignmentId'
     | '/admin/'
     | '/layanan/'
     | '/pengisian/'
@@ -521,6 +541,7 @@ export interface FileRouteTypes {
     | '/admin/rating'
     | '/admin/rbac'
     | '/admin/storage'
+    | '/admin/submission-review'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -532,6 +553,7 @@ export interface FileRouteTypes {
     | '/pengisian/$id'
     | '/permohonan/$id'
     | '/permohonan/baru'
+    | '/tugas/$assignmentId'
     | '/admin'
     | '/layanan'
     | '/pengisian'
@@ -570,6 +592,7 @@ export interface FileRouteTypes {
     | '/admin/rating'
     | '/admin/rbac'
     | '/admin/storage'
+    | '/admin/submission-review'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -581,6 +604,7 @@ export interface FileRouteTypes {
     | '/pengisian/$id'
     | '/permohonan/$id'
     | '/permohonan/baru'
+    | '/tugas/$assignmentId'
     | '/admin/'
     | '/layanan/'
     | '/pengisian/'
@@ -620,6 +644,7 @@ export interface RootRouteChildren {
   AdminRatingRoute: typeof AdminRatingRoute
   AdminRbacRoute: typeof AdminRbacRouteWithChildren
   AdminStorageRoute: typeof AdminStorageRoute
+  AdminSubmissionReviewRoute: typeof AdminSubmissionReviewRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVerifikasiRoute: typeof AdminVerifikasiRoute
   AdminVerifikasiLogRoute: typeof AdminVerifikasiLogRoute
@@ -631,6 +656,7 @@ export interface RootRouteChildren {
   PengisianIdRoute: typeof PengisianIdRoute
   PermohonanIdRoute: typeof PermohonanIdRoute
   PermohonanBaruRoute: typeof PermohonanBaruRoute
+  TugasAssignmentIdRoute: typeof TugasAssignmentIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   LayananIndexRoute: typeof LayananIndexRoute
   PengisianIndexRoute: typeof PengisianIndexRoute
@@ -733,6 +759,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tugas/$assignmentId': {
+      id: '/tugas/$assignmentId'
+      path: '/tugas/$assignmentId'
+      fullPath: '/tugas/$assignmentId'
+      preLoaderRoute: typeof TugasAssignmentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/permohonan/baru': {
       id: '/permohonan/baru'
       path: '/permohonan/baru'
@@ -808,6 +841,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/submission-review': {
+      id: '/admin/submission-review'
+      path: '/admin/submission-review'
+      fullPath: '/admin/submission-review'
+      preLoaderRoute: typeof AdminSubmissionReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/storage': {
@@ -1027,6 +1067,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRatingRoute: AdminRatingRoute,
   AdminRbacRoute: AdminRbacRouteWithChildren,
   AdminStorageRoute: AdminStorageRoute,
+  AdminSubmissionReviewRoute: AdminSubmissionReviewRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVerifikasiRoute: AdminVerifikasiRoute,
   AdminVerifikasiLogRoute: AdminVerifikasiLogRoute,
@@ -1038,6 +1079,7 @@ const rootRouteChildren: RootRouteChildren = {
   PengisianIdRoute: PengisianIdRoute,
   PermohonanIdRoute: PermohonanIdRoute,
   PermohonanBaruRoute: PermohonanBaruRoute,
+  TugasAssignmentIdRoute: TugasAssignmentIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   LayananIndexRoute: LayananIndexRoute,
   PengisianIndexRoute: PengisianIndexRoute,
