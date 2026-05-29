@@ -47,7 +47,7 @@ export async function enqueueRetry(opts: EnqueueOptions): Promise<string | null>
     .from("retry_queue")
     .insert({
       job_name: opts.jobName,
-      payload: opts.payload ?? {},
+      payload: (opts.payload ?? {}) as never,
       max_attempts: opts.maxAttempts ?? 5,
       next_run_at: next,
       request_id: opts.requestId ?? null,
@@ -112,7 +112,7 @@ export async function recordFailure(job: RetryJobRow, err: unknown): Promise<voi
     // Move to dead letter
     await supabaseAdmin.from("dead_letter_jobs").insert({
       job_name: job.job_name,
-      payload: job.payload,
+      payload: job.payload as never,
       error_message: message.slice(0, 2000),
       retry_count: attempts,
       request_id: job.request_id,
