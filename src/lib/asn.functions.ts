@@ -4,6 +4,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { checkRateLimit } from "@/integrations/supabase/rate-limit.server";
+import { getUserContext } from "@/features/rbac/guards";
+
+// Shim back-compat: pertahankan shape lama yang dipakai handler di bawah.
+async function userRolesAndOpd(userId: string) {
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  return { isSuper: ctx.isSuper, isAdminOpd: ctx.isAdminOpd, isAsn: ctx.isAsn, opdId: ctx.opdId };
+}
 
 function randomToken(bytes = 24) {
   const arr = new Uint8Array(bytes);
@@ -21,21 +28,6 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   return 2 * R * Math.asin(Math.sqrt(a));
 }
 
-async function userRolesAndOpd(userId: string) {
-  const [{ data: roles }, { data: prof }] = await Promise.all([
-    supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
-    supabaseAdmin.from("profiles").select("opd_id").eq("id", userId).maybeSingle(),
-  ]);
-  const r = (roles ?? []).map((x) => x.role);
-  return {
-    isSuper: r.includes("super_admin"),
-    isAdminOpd: r.includes("admin_opd"),
-    isAsn: r.includes("asn"),
-    opdId: (prof?.opd_id as string | null) ?? null,
-  };
-}
-
-// ============= GENERATE / ROTATE QR KANTOR =============
 export const regenerateKantorQR = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>

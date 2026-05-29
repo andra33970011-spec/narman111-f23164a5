@@ -5,15 +5,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getUserContext } from "@/features/rbac/guards";
 
 async function getRoles(userId: string): Promise<string[]> {
-  const { data } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", userId);
-  return (data ?? []).map((r) => r.role as string);
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  return Array.from(ctx.roleSet);
 }
 
 async function getDesa(userId: string): Promise<string | null> {
-  const { data } = await supabaseAdmin.from("profiles").select("desa").eq("id", userId).maybeSingle();
-  return (data?.desa as string | null) ?? null;
+  const ctx = await getUserContext(supabaseAdmin, userId);
+  return ctx.desa;
 }
 
 async function ensureProfilesForUsers(userIds: string[]) {
