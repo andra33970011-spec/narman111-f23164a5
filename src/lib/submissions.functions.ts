@@ -144,7 +144,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     // Update assignment status
     if (s.assignment_id) {
-      await supabaseAdmin.from("form_assignments").update({ status: "completed" }).eq("id", s.assignment_id);
+      await supabaseAdmin.from("form_assignments").update({ status: "submitted" }).eq("id", s.assignment_id);
     }
     // Notify form owner OPD admins
     const opdPemilik = (s.forms as { opd_pemilik_id: string | null })?.opd_pemilik_id;
