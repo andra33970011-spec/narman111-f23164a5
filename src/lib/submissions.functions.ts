@@ -12,6 +12,15 @@ import { buildSubmissionValidator } from "@/features/forms/schema/validator";
 import type { FormSchemaSnapshot } from "@/features/forms/schema/types";
 import { enqueueNotification } from "./notifications.functions";
 import { assertTransition, type SubmissionState } from "@/features/forms/schema/state-machine";
+import { log } from "./logger";
+
+/** Stale-state error class for compare-and-swap detection. */
+class StaleSubmissionError extends Error {
+  constructor() {
+    super("Submission telah diubah pihak lain. Muat ulang dan coba lagi.");
+    this.name = "StaleSubmissionError";
+  }
+}
 
 async function loadFormAndAssignment(opts: { assignmentId?: string; formId?: string; userId: string }) {
   if (opts.assignmentId) {
