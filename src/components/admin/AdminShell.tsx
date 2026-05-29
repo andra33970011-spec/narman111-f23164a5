@@ -28,6 +28,8 @@ type NavItem = {
 const baseNav: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { to: "/admin", label: "Permohonan", icon: Inbox, hash: "tabel" },
+  { to: "/admin/forms", label: "Form Builder", icon: FileClock },
+  { to: "/admin/submission-review", label: "Review Submission", icon: ListChecks },
   { to: "/admin/laporan", label: "Laporan Masyarakat", icon: MessageSquare },
   { to: "/admin/layanan", label: "Layanan OPD", icon: ListChecks },
 ];

@@ -134,7 +134,7 @@ export const listMyAssignments = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z
       .object({
-        status: z.enum(["assigned", "in_progress", "completed", "overdue"]).optional(),
+        status: z.enum(["assigned", "in_progress", "submitted", "overdue"]).optional(),
         page: z.number().int().min(0).default(0),
         pageSize: z.number().int().min(1).max(50).default(20),
       })
