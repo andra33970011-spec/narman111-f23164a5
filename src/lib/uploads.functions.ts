@@ -55,6 +55,7 @@ export const createUploadSession = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.uploadSignedUrl);
     const s = await loadSubmissionOwned(data.submissionId, userId);
     if (!ALLOWED_MIME.has(data.mime)) throw new Error(`Tipe file tidak didukung: ${data.mime}`);
     const objectPath = `submissions/${s.id}/${data.fieldKode}/${crypto.randomUUID()}-${sanitizeFilename(data.filename)}`;
