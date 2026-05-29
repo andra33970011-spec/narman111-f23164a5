@@ -35,8 +35,6 @@ function fieldValidator(f: FormField): ZodTypeAny {
     }
     case "checkbox": {
       const allowed = f.options.map((o) => o.value);
-    case "checkbox": {
-      const allowed = f.options.map((o) => o.value);
       const base = z.array(z.string()).refine(
         (vs) => vs.every((v) => allowed.includes(v)),
         "pilihan tidak valid",
