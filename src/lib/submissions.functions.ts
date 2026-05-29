@@ -165,7 +165,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
             userId: a.user_id,
             tipe: "form.submitted",
             judul: `Submission baru: ${(s.forms as { judul: string }).judul}`,
-            link: `/admin/verifikasi/submission`,
+            link: `/admin/submission-review`,
             meta: { submission_id: s.id },
           });
         }
