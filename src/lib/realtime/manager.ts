@@ -21,6 +21,33 @@ type Entry = {
 };
 
 const registry = new Map<string, Entry>();
+// Per-channel recent-event dedupe (commit_timestamp + record id)
+const seenEvents = new Map<string, Map<string, number>>();
+const DEDUPE_TTL_MS = 30_000;
+
+function shouldDeliver(
+  channelName: string,
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+): boolean {
+  const rec = (payload.new ?? payload.old ?? {}) as Record<string, unknown>;
+  const id = typeof rec.id === "string" ? rec.id : "";
+  const ts = (payload as unknown as { commit_timestamp?: string }).commit_timestamp ?? "";
+  if (!id && !ts) return true;
+  const key = `${payload.eventType}:${id}:${ts}`;
+  let bucket = seenEvents.get(channelName);
+  if (!bucket) {
+    bucket = new Map();
+    seenEvents.set(channelName, bucket);
+  }
+  const now = Date.now();
+  // GC old entries
+  if (bucket.size > 200) {
+    for (const [k, t] of bucket) if (now - t > DEDUPE_TTL_MS) bucket.delete(k);
+  }
+  if (bucket.has(key)) return false;
+  bucket.set(key, now);
+  return true;
+}
 
 export type SubscribeOptions = {
   /** Stable channel name, e.g. "notifications:user:<uid>" */
