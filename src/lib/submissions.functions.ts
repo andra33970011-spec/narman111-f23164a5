@@ -195,6 +195,7 @@ export const submitSubmission = createServerFn({ method: "POST" })
 const reviewInput = z.object({
   submissionId: z.string().uuid(),
   note: z.string().trim().max(2000).optional().nullable(),
+  expectedVersion: z.number().int().positive().optional(),
 });
 
 async function reviewerOrThrow(submissionId: string, userId: string) {
