@@ -59,6 +59,7 @@ export const saveDraft = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { userId } = context as { userId: string };
+    await enforceRateLimit(userId, RateLimits.submissionDraft);
     const ctx = await getUserContext(supabaseAdmin, userId);
     if (data.submissionId) {
       // update draft existing — compare-and-swap pada version_number
