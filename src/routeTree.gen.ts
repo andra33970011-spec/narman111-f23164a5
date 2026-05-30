@@ -34,6 +34,7 @@ import { Route as AsnAbsensiRouteImport } from './routes/asn.absensi'
 import { Route as AdminVerifikasiLogRouteImport } from './routes/admin.verifikasi-log'
 import { Route as AdminVerifikasiRouteImport } from './routes/admin.verifikasi'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminSystemHealthRouteImport } from './routes/admin.system-health'
 import { Route as AdminSubmissionReviewRouteImport } from './routes/admin.submission-review'
 import { Route as AdminStorageRouteImport } from './routes/admin.storage'
 import { Route as AdminRbacRouteImport } from './routes/admin.rbac'
@@ -56,7 +57,9 @@ import { Route as AsnScanTokenRouteImport } from './routes/asn.scan.$token'
 import { Route as AdminRbacAuditRouteImport } from './routes/admin.rbac.audit'
 import { Route as AdminRbacUserIdRouteImport } from './routes/admin.rbac.$userId'
 import { Route as AdminFormsIdRouteImport } from './routes/admin.forms.$id'
+import { Route as ApiPublicHooksUploadIntegrityRouteImport } from './routes/api/public/hooks/upload-integrity'
 import { Route as ApiPublicHooksStorageCleanupRouteImport } from './routes/api/public/hooks/storage-cleanup'
+import { Route as ApiPublicHooksCronWatchdogRouteImport } from './routes/api/public/hooks/cron-watchdog'
 import { Route as ApiPublicHooksCleanupUploadsRouteImport } from './routes/api/public/hooks/cleanup-uploads'
 import { Route as ApiPublicHooksBackupSnapshotRouteImport } from './routes/api/public/hooks/backup-snapshot'
 
@@ -185,6 +188,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminSystemHealthRoute = AdminSystemHealthRouteImport.update({
+  id: '/admin/system-health',
+  path: '/admin/system-health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminSubmissionReviewRoute = AdminSubmissionReviewRouteImport.update({
   id: '/admin/submission-review',
   path: '/admin/submission-review',
@@ -295,10 +303,22 @@ const AdminFormsIdRoute = AdminFormsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AdminFormsRoute,
 } as any)
+const ApiPublicHooksUploadIntegrityRoute =
+  ApiPublicHooksUploadIntegrityRouteImport.update({
+    id: '/api/public/hooks/upload-integrity',
+    path: '/api/public/hooks/upload-integrity',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksStorageCleanupRoute =
   ApiPublicHooksStorageCleanupRouteImport.update({
     id: '/api/public/hooks/storage-cleanup',
     path: '/api/public/hooks/storage-cleanup',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksCronWatchdogRoute =
+  ApiPublicHooksCronWatchdogRouteImport.update({
+    id: '/api/public/hooks/cron-watchdog',
+    path: '/api/public/hooks/cron-watchdog',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksCleanupUploadsRoute =
@@ -342,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
   '/admin/submission-review': typeof AdminSubmissionReviewRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -364,7 +385,9 @@ export interface FileRoutesByFullPath {
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
   '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
+  '/api/public/hooks/cron-watchdog': typeof ApiPublicHooksCronWatchdogRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
+  '/api/public/hooks/upload-integrity': typeof ApiPublicHooksUploadIntegrityRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -394,6 +417,7 @@ export interface FileRoutesByTo {
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
   '/admin/submission-review': typeof AdminSubmissionReviewRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -416,7 +440,9 @@ export interface FileRoutesByTo {
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
   '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
+  '/api/public/hooks/cron-watchdog': typeof ApiPublicHooksCronWatchdogRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
+  '/api/public/hooks/upload-integrity': typeof ApiPublicHooksUploadIntegrityRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -447,6 +473,7 @@ export interface FileRoutesById {
   '/admin/rbac': typeof AdminRbacRouteWithChildren
   '/admin/storage': typeof AdminStorageRoute
   '/admin/submission-review': typeof AdminSubmissionReviewRoute
+  '/admin/system-health': typeof AdminSystemHealthRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/verifikasi': typeof AdminVerifikasiRoute
   '/admin/verifikasi-log': typeof AdminVerifikasiLogRoute
@@ -469,7 +496,9 @@ export interface FileRoutesById {
   '/asn/scan/$token': typeof AsnScanTokenRoute
   '/api/public/hooks/backup-snapshot': typeof ApiPublicHooksBackupSnapshotRoute
   '/api/public/hooks/cleanup-uploads': typeof ApiPublicHooksCleanupUploadsRoute
+  '/api/public/hooks/cron-watchdog': typeof ApiPublicHooksCronWatchdogRoute
   '/api/public/hooks/storage-cleanup': typeof ApiPublicHooksStorageCleanupRoute
+  '/api/public/hooks/upload-integrity': typeof ApiPublicHooksUploadIntegrityRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -501,6 +530,7 @@ export interface FileRouteTypes {
     | '/admin/rbac'
     | '/admin/storage'
     | '/admin/submission-review'
+    | '/admin/system-health'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -523,7 +553,9 @@ export interface FileRouteTypes {
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
     | '/api/public/hooks/cleanup-uploads'
+    | '/api/public/hooks/cron-watchdog'
     | '/api/public/hooks/storage-cleanup'
+    | '/api/public/hooks/upload-integrity'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -553,6 +585,7 @@ export interface FileRouteTypes {
     | '/admin/rbac'
     | '/admin/storage'
     | '/admin/submission-review'
+    | '/admin/system-health'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -575,7 +608,9 @@ export interface FileRouteTypes {
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
     | '/api/public/hooks/cleanup-uploads'
+    | '/api/public/hooks/cron-watchdog'
     | '/api/public/hooks/storage-cleanup'
+    | '/api/public/hooks/upload-integrity'
   id:
     | '__root__'
     | '/'
@@ -605,6 +640,7 @@ export interface FileRouteTypes {
     | '/admin/rbac'
     | '/admin/storage'
     | '/admin/submission-review'
+    | '/admin/system-health'
     | '/admin/users'
     | '/admin/verifikasi'
     | '/admin/verifikasi-log'
@@ -627,7 +663,9 @@ export interface FileRouteTypes {
     | '/asn/scan/$token'
     | '/api/public/hooks/backup-snapshot'
     | '/api/public/hooks/cleanup-uploads'
+    | '/api/public/hooks/cron-watchdog'
     | '/api/public/hooks/storage-cleanup'
+    | '/api/public/hooks/upload-integrity'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -658,6 +696,7 @@ export interface RootRouteChildren {
   AdminRbacRoute: typeof AdminRbacRouteWithChildren
   AdminStorageRoute: typeof AdminStorageRoute
   AdminSubmissionReviewRoute: typeof AdminSubmissionReviewRoute
+  AdminSystemHealthRoute: typeof AdminSystemHealthRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminVerifikasiRoute: typeof AdminVerifikasiRoute
   AdminVerifikasiLogRoute: typeof AdminVerifikasiLogRoute
@@ -677,7 +716,9 @@ export interface RootRouteChildren {
   AsnScanTokenRoute: typeof AsnScanTokenRoute
   ApiPublicHooksBackupSnapshotRoute: typeof ApiPublicHooksBackupSnapshotRoute
   ApiPublicHooksCleanupUploadsRoute: typeof ApiPublicHooksCleanupUploadsRoute
+  ApiPublicHooksCronWatchdogRoute: typeof ApiPublicHooksCronWatchdogRoute
   ApiPublicHooksStorageCleanupRoute: typeof ApiPublicHooksStorageCleanupRoute
+  ApiPublicHooksUploadIntegrityRoute: typeof ApiPublicHooksUploadIntegrityRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -857,6 +898,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/system-health': {
+      id: '/admin/system-health'
+      path: '/admin/system-health'
+      fullPath: '/admin/system-health'
+      preLoaderRoute: typeof AdminSystemHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/submission-review': {
       id: '/admin/submission-review'
       path: '/admin/submission-review'
@@ -1011,11 +1059,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminFormsIdRouteImport
       parentRoute: typeof AdminFormsRoute
     }
+    '/api/public/hooks/upload-integrity': {
+      id: '/api/public/hooks/upload-integrity'
+      path: '/api/public/hooks/upload-integrity'
+      fullPath: '/api/public/hooks/upload-integrity'
+      preLoaderRoute: typeof ApiPublicHooksUploadIntegrityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/storage-cleanup': {
       id: '/api/public/hooks/storage-cleanup'
       path: '/api/public/hooks/storage-cleanup'
       fullPath: '/api/public/hooks/storage-cleanup'
       preLoaderRoute: typeof ApiPublicHooksStorageCleanupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/cron-watchdog': {
+      id: '/api/public/hooks/cron-watchdog'
+      path: '/api/public/hooks/cron-watchdog'
+      fullPath: '/api/public/hooks/cron-watchdog'
+      preLoaderRoute: typeof ApiPublicHooksCronWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/cleanup-uploads': {
@@ -1089,6 +1151,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRbacRoute: AdminRbacRouteWithChildren,
   AdminStorageRoute: AdminStorageRoute,
   AdminSubmissionReviewRoute: AdminSubmissionReviewRoute,
+  AdminSystemHealthRoute: AdminSystemHealthRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminVerifikasiRoute: AdminVerifikasiRoute,
   AdminVerifikasiLogRoute: AdminVerifikasiLogRoute,
@@ -1108,7 +1171,9 @@ const rootRouteChildren: RootRouteChildren = {
   AsnScanTokenRoute: AsnScanTokenRoute,
   ApiPublicHooksBackupSnapshotRoute: ApiPublicHooksBackupSnapshotRoute,
   ApiPublicHooksCleanupUploadsRoute: ApiPublicHooksCleanupUploadsRoute,
+  ApiPublicHooksCronWatchdogRoute: ApiPublicHooksCronWatchdogRoute,
   ApiPublicHooksStorageCleanupRoute: ApiPublicHooksStorageCleanupRoute,
+  ApiPublicHooksUploadIntegrityRoute: ApiPublicHooksUploadIntegrityRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

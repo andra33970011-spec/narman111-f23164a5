@@ -115,25 +115,25 @@ function SystemHealthPage() {
             icon={Clock}
             label="Retry Pending"
             value={String((s?.retryQueue.pending ?? 0) + (s?.retryQueue.retrying ?? 0))}
-            hint={`${s?.retryQueue.deadLetter ?? 0} dead-letter`}
+            delta={`${s?.retryQueue.deadLetter ?? 0} dead-letter`}
           />
           <StatCard
             icon={AlertTriangle}
             label="Dead-letter belum dibereskan"
             value={String(s?.deadLetters.unresolved ?? 0)}
-            hint={`total ${s?.deadLetters.total ?? 0}`}
+            delta={`total ${s?.deadLetters.total ?? 0}`}
           />
           <StatCard
             icon={Activity}
             label="Upload orphan"
             value={String(s?.uploads.orphanedPending ?? 0)}
-            hint={`${s?.uploads.stuck ?? 0} stuck > 12 jam`}
+            delta={`${s?.uploads.stuck ?? 0} stuck > 12 jam`}
           />
           <StatCard
             icon={CheckCircle2}
             label="Cron 24 jam"
             value={String(s?.cron.recentRuns ?? 0)}
-            hint={`${s?.cron.failuresLast24h ?? 0} gagal`}
+            delta={`${s?.cron.failuresLast24h ?? 0} gagal`}
           />
         </div>
 
