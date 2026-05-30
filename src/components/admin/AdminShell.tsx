@@ -60,6 +60,7 @@ const superNav: NavItem[] = [
   { to: "/admin/storage", label: "Storage", icon: FolderOpen },
   { to: "/admin/audit", label: "Audit Log", icon: FileClock },
   { to: "/admin/backup", label: "Backup Data", icon: DbIcon },
+  { to: "/admin/system-health", label: "Status Sistem", icon: ListChecks },
 ];
 
 export function AdminShell({
